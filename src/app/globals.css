@@ -945,6 +945,46 @@ a:hover {
   letter-spacing: -0.025em;
   line-height: 1;
 }
+/* The answer to "what does it cost to replace these", given the weight of an
+   answer: one number, once, with the action next to it. */
+.best-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 1.5rem 1.75rem;
+  background: var(--card);
+  border: 1.5px solid var(--flame);
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 4px var(--flame-wash), var(--shadow-card);
+}
+.best-price-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.best-price-amount {
+  display: block;
+  margin: 0.15rem 0;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: clamp(2.1rem, 6vw, 2.9rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--ink);
+}
+.best-price-where {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
 /* Retailer-as-lead, used when there is no live price to show. Sized like a
    heading rather than like a price, so the row does not read as a number that
    failed to load. */

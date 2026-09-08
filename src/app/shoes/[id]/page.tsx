@@ -78,17 +78,22 @@ export default async function ShoePage({
       })
     : [];
   const best = cheapest(prices);
-  const hasRealPrices = prices.some((p) => p.priceCents !== null);
 
-  // Three is enough to compare; more is a list to scroll rather than a choice
-  // to make. Cheapest first when real prices exist, otherwise catalogue order.
-  const buyAgain = (
-    hasRealPrices
-      ? [...prices].sort(
-          (a, b) => (a.priceCents ?? Infinity) - (b.priceCents ?? Infinity)
-        )
-      : prices
-  ).slice(0, 3);
+  // Everything else worth clicking, cheapest first, minus the winner. Two is
+  // enough to sanity-check the best price without turning this into a list.
+  const alternatives = [...prices]
+    .filter((p) => p.id !== best?.id)
+    .sort((a, b) => (a.priceCents ?? Infinity) - (b.priceCents ?? Infinity))
+    .slice(0, 2);
+
+  // Lowest ever recorded for this shoe. Snapshots are never deleted, so this
+  // is free history — and it is the number that says whether today is a good
+  // day to buy or a week to wait.
+  const lowestEver = await prisma.priceSnapshot.aggregate({
+    where: { shoeId: shoe.id, priceCents: { not: null } },
+    _min: { priceCents: true },
+  });
+  const floor = lowestEver._min.priceCents;
 
   const reviews = shoe.links
     .filter((l) => l.kind === "REVIEW")
@@ -203,62 +208,97 @@ export default async function ShoePage({
 
       <section className="section">
         <h2>Buy again</h2>
-        {buyAgain.length === 0 ? (
-          <p className="empty">
-            Prices refresh once a day. Nothing has been checked for this pair
-            yet.
-          </p>
-        ) : (
+
+        {best ? (
           <>
-            <ul className="price-grid">
-              {buyAgain.map((p) => {
-                const amount = formatPrice(p.priceCents, p.currency);
-                const isBest = best?.id === p.id;
-                return (
-                  <li
-                    key={p.id}
-                    className={`price-row${isBest ? " is-best" : ""}`}
-                  >
-                    {/* With a live price the number leads. Without one there is
-                        no number to lead with, so the retailer does — an empty
-                        price slot just looks like a failed lookup. */}
-                    {amount ? (
-                      <span className="price-lead">
-                        <span className="price-amount">{amount}</span>
-                        <span className="price-retailer">
-                          {sourceName(p.retailer)}
-                          {isBest && (
-                            <span className="price-best-flag">Cheapest</span>
-                          )}
-                        </span>
+            {/* One number, because the question is "what does it cost to
+                replace these" and the answer is a single price. */}
+            <div className="best-price">
+              <div>
+                <span className="best-price-label">Best price found</span>
+                <span className="best-price-amount">
+                  {formatPrice(best.priceCents, best.currency)}
+                </span>
+                <span className="best-price-where">
+                  at {sourceName(best.retailer)}
+                  {floor !== null && best.priceCents === floor && (
+                    <span className="price-best-flag">Lowest yet</span>
+                  )}
+                </span>
+              </div>
+              <a
+                className="btn btn-solid btn-lg"
+                href={best.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Buy at {sourceName(best.retailer)}
+              </a>
+            </div>
+
+            {alternatives.length > 0 && (
+              <ul className="price-grid" style={{ marginTop: "1rem" }}>
+                {alternatives.map((p) => (
+                  <li key={p.id} className="price-row">
+                    <span className="price-lead">
+                      <span className="price-amount">
+                        {formatPrice(p.priceCents, p.currency) ?? "—"}
                       </span>
-                    ) : (
-                      <span className="price-lead">
-                        <span className="price-store">
-                          {sourceName(p.retailer)}
-                        </span>
-                        <span className="price-retailer">
-                          Search results for this model
-                        </span>
+                      <span className="price-retailer">
+                        {sourceName(p.retailer)}
                       </span>
-                    )}
+                    </span>
                     <a
-                      className={amount ? "btn btn-solid" : "btn"}
+                      className="btn"
                       href={p.url}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      {amount ? "Buy" : "Check price"}
+                      Buy
                     </a>
                   </li>
-                );
-              })}
-            </ul>
-            <p className="meta" style={{ marginTop: "0.75rem" }}>
-              Checked {latest!.checkedAt.toLocaleString("en-US")}
-              {!hasRealPrices &&
-                " — set SERPAPI_KEY to show live prices instead of retailer links."}
+                ))}
+              </ul>
+            )}
+
+            <p className="meta" style={{ marginTop: "0.85rem" }}>
+              Checked daily. Last checked{" "}
+              {latest!.checkedAt.toLocaleString("en-US")}
+              {floor !== null && best.priceCents !== floor && (
+                <>. Lowest seen {formatPrice(floor, best.currency)}</>
+              )}
             </p>
+          </>
+        ) : (
+          <>
+            <p className="empty">
+              No price found yet. The search runs once a day and the best price
+              lands here when it does.
+            </p>
+            {prices.length > 0 && (
+              <ul className="price-grid" style={{ marginTop: "1rem" }}>
+                {prices.slice(0, 3).map((p) => (
+                  <li key={p.id} className="price-row">
+                    <span className="price-lead">
+                      <span className="price-store">
+                        {sourceName(p.retailer)}
+                      </span>
+                      <span className="price-retailer">
+                        Search results for this model
+                      </span>
+                    </span>
+                    <a
+                      className="btn"
+                      href={p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Check price
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </>
         )}
       </section>
