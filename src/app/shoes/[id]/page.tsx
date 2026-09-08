@@ -219,28 +219,36 @@ export default async function ShoePage({
                     key={p.id}
                     className={`price-row${isBest ? " is-best" : ""}`}
                   >
-                    <span className="price-lead">
-                      <span
-                        className={`price-amount${
-                          amount ? "" : " price-amount-none"
-                        }`}
-                      >
-                        {amount ?? "See price"}
+                    {/* With a live price the number leads. Without one there is
+                        no number to lead with, so the retailer does — an empty
+                        price slot just looks like a failed lookup. */}
+                    {amount ? (
+                      <span className="price-lead">
+                        <span className="price-amount">{amount}</span>
+                        <span className="price-retailer">
+                          {sourceName(p.retailer)}
+                          {isBest && (
+                            <span className="price-best-flag">Cheapest</span>
+                          )}
+                        </span>
                       </span>
-                      <span className="price-retailer">
-                        {sourceName(p.retailer)}
-                        {isBest && amount && (
-                          <span className="price-best-flag">Cheapest</span>
-                        )}
+                    ) : (
+                      <span className="price-lead">
+                        <span className="price-store">
+                          {sourceName(p.retailer)}
+                        </span>
+                        <span className="price-retailer">
+                          Search results for this model
+                        </span>
                       </span>
-                    </span>
+                    )}
                     <a
-                      className="btn btn-solid"
+                      className={amount ? "btn btn-solid" : "btn"}
                       href={p.url}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Buy at {sourceName(p.retailer)}
+                      {amount ? "Buy" : "Check price"}
                     </a>
                   </li>
                 );

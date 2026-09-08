@@ -44,16 +44,28 @@ export const REVIEW_SOURCES: Source[] = [
   },
 ];
 
+/**
+ * Retailer search URLs.
+ *
+ * These are checked by hand rather than guessed: the first two were pointing
+ * at paths that 404 (`/catalogsearch/result/` and `/search?q=`), which sent
+ * every "Buy again" click to an error page. Both now use the URL the site's
+ * own search form submits to. Worth re-testing if a retailer redesigns.
+ */
 export const RETAIL_SOURCES: Source[] = [
   {
     key: "running-warehouse",
     name: "Running Warehouse",
-    url: (q) => `https://www.runningwarehouse.com/catalogsearch/result/?q=${q}`,
+    // Their search form posts to search-mens.html with a `searchtext` param;
+    // the results page carries the gender tabs, so women's models are one
+    // click away rather than missing.
+    url: (q) => `https://www.runningwarehouse.com/search-mens.html?searchtext=${q}`,
   },
   {
     key: "road-runner-sports",
     name: "Road Runner Sports",
-    url: (q) => `https://www.roadrunnersports.com/search?q=${q}`,
+    // Path-based search, not a query string.
+    url: (q) => `https://www.roadrunnersports.com/search/${q}`,
   },
   {
     key: "rei",
