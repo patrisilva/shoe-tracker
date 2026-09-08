@@ -122,6 +122,23 @@ async function ownedShoe(shoeId: string, userId: string) {
 const MAX_IMAGE_BYTES = 900_000;
 
 /**
+ * Narrows a form entry to an uploaded file by shape rather than by class.
+ *
+ * `instanceof File` looks like the obvious check and is a portability trap:
+ * `File` only became a Node global in v20, so it throws ReferenceError on
+ * older runtimes. Duck-typing works on every version, and `Blob` is used here
+ * as a type only, which erases at compile time.
+ */
+function isUpload(value: FormDataEntryValue | null): value is File {
+  return (
+    !!value &&
+    typeof value !== "string" &&
+    typeof (value as File).arrayBuffer === "function" &&
+    typeof (value as File).size === "number"
+  );
+}
+
+/**
  * Stores an uploaded shoe photo, if one came with the form.
  *
  * The type is taken from the bytes rather than the client-supplied MIME, since
@@ -129,7 +146,7 @@ const MAX_IMAGE_BYTES = 900_000;
  */
 async function saveShoeImage(shoeId: string, formData: FormData): Promise<void> {
   const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) return;
+  if (!isUpload(file) || file.size === 0) return;
   if (file.size > MAX_IMAGE_BYTES) return;
 
   const bytes = Buffer.from(await file.arrayBuffer());
