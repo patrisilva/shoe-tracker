@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { auth, signIn, enabledProviders } from "@/auth";
+import { auth, enabledProviders } from "@/auth";
 import { DistanceRail } from "@/components/DistanceRail";
+import { SignInButton } from "@/components/SignInButton";
 import { computeDistance } from "@/lib/shoe";
 
 export default async function Home() {
@@ -24,31 +25,12 @@ export default async function Home() {
           so replacing a pair takes a minute instead of an evening.
         </p>
 
-        <div className="gate-actions">
+        <div className="provider-stack">
           {enabledProviders.includes("google") && (
-            <form
-              action={async () => {
-                "use server";
-                await signIn("google", { redirectTo: "/dashboard" });
-              }}
-            >
-              <button className="btn btn-solid" type="submit">
-                Continue with Google
-              </button>
-            </form>
+            <SignInButton provider="google" />
           )}
-
           {enabledProviders.includes("apple") && (
-            <form
-              action={async () => {
-                "use server";
-                await signIn("apple", { redirectTo: "/dashboard" });
-              }}
-            >
-              <button className="btn" type="submit">
-                Continue with Apple
-              </button>
-            </form>
+            <SignInButton provider="apple" />
           )}
 
           {enabledProviders.length === 0 && (
@@ -58,6 +40,13 @@ export default async function Home() {
             </p>
           )}
         </div>
+
+        {enabledProviders.length > 0 && (
+          <p className="gate-note">
+            Signing in creates your rack on first use — there is no separate
+            sign-up.
+          </p>
+        )}
 
         <div className="sample-rail">
           <div className="rack-head">
