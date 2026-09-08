@@ -1,14 +1,18 @@
 import { prisma } from "@/lib/db";
-import { MAX_REVIEW_LINKS, REVIEW_SOURCES, shoeQuery } from "@/lib/links";
+import { MAX_REVIEW_LINKS, REVIEW_SOURCES } from "@/lib/links";
 import { findArticles } from "@/lib/review-finder";
 
 /**
- * Replaces a shoe's review links with the best three available.
+ * Replaces a shoe's review links with the articles found for it.
  *
- * Real articles come first, in the order the source catalogue lists them. If
- * fewer than three are found, the remaining slots fall back to a search link
- * for a source that had no match, so the section is never empty — the card
- * renders those as "not found yet" rather than as a broken article.
+ * Only real articles are stored. There is deliberately no search-link
+ * fallback: a card that sends someone to a search box is not a review, and
+ * offering one just moves the work back to the reader. If nothing is found the
+ * section says so, and the next refresh tries again — which matters for a shoe
+ * released before the sites have written it up.
+ *
+ * `reviewsCheckedAt` is stamped either way, so a shoe that genuinely has no
+ * coverage does not re-query four sites on every page view.
  */
 export async function refreshShoeReviews(shoeId: string): Promise<number> {
   const shoe = await prisma.shoe.findUnique({
@@ -18,47 +22,55 @@ export async function refreshShoeReviews(shoeId: string): Promise<number> {
   if (!shoe) return 0;
 
   const found = await findArticles(shoe.brand, shoe.model);
+
+  // Keep the catalogue's own ordering rather than whichever site answered
+  // first, so the list is stable between refreshes.
   const rank = new Map(REVIEW_SOURCES.map((s, i) => [s.key, i]));
   found.sort((a, b) => (rank.get(a.source) ?? 99) - (rank.get(b.source) ?? 99));
 
   const articles = found.slice(0, MAX_REVIEW_LINKS);
-  const usedSources = new Set(articles.map((a) => a.source));
-
-  const q = shoeQuery(shoe.brand, shoe.model);
-  const fallbacks = REVIEW_SOURCES.filter((s) => !usedSources.has(s.key)).slice(
-    0,
-    MAX_REVIEW_LINKS - articles.length
-  );
-
-  const rows = [
-    ...articles.map((a, i) => ({
-      shoeId: shoe.id,
-      kind: "REVIEW" as const,
-      title: a.title,
-      source: a.source,
-      url: a.url,
-      position: i,
-      imageUrl: a.imageUrl,
-      excerpt: a.excerpt,
-      publishedAt: a.publishedAt,
-    })),
-    ...fallbacks.map((s, i) => ({
-      shoeId: shoe.id,
-      kind: "REVIEW" as const,
-      title: `${shoe.brand} ${shoe.model} on ${s.name}`,
-      source: s.key,
-      url: s.url(q),
-      position: articles.length + i,
-      imageUrl: null,
-      excerpt: null,
-      publishedAt: null,
-    })),
-  ];
 
   await prisma.$transaction([
     prisma.shoeLink.deleteMany({ where: { shoeId: shoe.id, kind: "REVIEW" } }),
-    prisma.shoeLink.createMany({ data: rows }),
+    prisma.shoeLink.createMany({
+      data: articles.map((a, i) => ({
+        shoeId: shoe.id,
+        kind: "REVIEW" as const,
+        title: a.title,
+        source: a.source,
+        url: a.url,
+        position: i,
+        imageUrl: a.imageUrl,
+        excerpt: a.excerpt,
+        publishedAt: a.publishedAt,
+      })),
+    }),
+    prisma.shoe.update({
+      where: { id: shoe.id },
+      data: { reviewsCheckedAt: new Date() },
+    }),
   ]);
 
   return articles.length;
+}
+
+/** Every shoe still in service, for the daily job. */
+export async function refreshAllReviews(): Promise<{
+  shoes: number;
+  articles: number;
+}> {
+  const shoes = await prisma.shoe.findMany({
+    where: { retiredAt: null },
+    select: { id: true },
+  });
+
+  let articles = 0;
+  for (const shoe of shoes) {
+    try {
+      articles += await refreshShoeReviews(shoe.id);
+    } catch {
+      // One unreachable site should not stop the rest of the rack.
+    }
+  }
+  return { shoes: shoes.length, articles };
 }

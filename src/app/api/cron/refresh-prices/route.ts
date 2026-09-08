@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { refreshAllPrices } from "@/lib/refresh";
+import { refreshAllReviews } from "@/lib/reviews";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -27,6 +28,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authorised." }, { status: 401 });
   }
 
-  const result = await refreshAllPrices();
-  return NextResponse.json({ ok: true, ...result });
+  // Reviews as well as prices: a shoe reviewed after it was added should pick
+  // the article up without anyone having to re-add the shoe.
+  const [prices, reviews] = await Promise.all([
+    refreshAllPrices(),
+    refreshAllReviews(),
+  ]);
+
+  return NextResponse.json({ ok: true, ...prices, articles: reviews.articles });
 }

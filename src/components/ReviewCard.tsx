@@ -30,8 +30,6 @@ export type ReviewLink = {
  * as "not found yet" rather than as a broken image frame.
  */
 export function ReviewCard({ link }: { link: ReviewLink }) {
-  const hasArticle = Boolean(link.excerpt || link.imageUrl);
-
   return (
     <li className="review-card">
       <div className={`review-shot${link.imageUrl ? "" : " review-shot-none"}`}>
@@ -61,7 +59,7 @@ export function ReviewCard({ link }: { link: ReviewLink }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          {hasArticle ? "Read the review" : "Search this site"}
+          Read the review
         </a>
       </div>
     </li>

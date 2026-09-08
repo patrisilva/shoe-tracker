@@ -84,6 +84,10 @@ model Shoe {
   purchasedOn      DateTime?
   retiredAt        DateTime?
   createdAt        DateTime  @default(now())
+  // When the review sites were last searched for this shoe. Null means never,
+  // which is what triggers the first lookup — shoes added before the finder
+  // existed backfill themselves on their next visit.
+  reviewsCheckedAt DateTime?
 
   user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   runs     Run[]

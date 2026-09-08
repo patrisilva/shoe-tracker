@@ -501,8 +501,41 @@ a:hover {
   flex-wrap: wrap;
 }
 .shoe-hero .shoe-photo.is-hero {
+  width: 100%;
+}
+
+/* Editing lives on the photo rather than in a section of its own. */
+.hero-photo {
   width: 13rem;
   flex: 0 0 auto;
+}
+.hero-photo-edit {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.3rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--flame-deep);
+  cursor: pointer;
+  text-align: center;
+}
+.hero-photo-edit:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.hero-photo-form {
+  flex: 0 0 auto;
+  width: min(26rem, 100%);
+  padding: 1.1rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
 }
 .shoe-hero-text {
   flex: 1;
@@ -842,6 +875,31 @@ a:hover {
   padding-top: 0.5rem;
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+/* Placeholder while the review sites are being searched. Shaped like the card
+   it will become, so the column does not jump when the articles land. */
+.review-card.is-loading {
+  display: flex;
+}
+.skeleton-line {
+  display: block;
+  height: 0.7rem;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, #eceff4, #f6f7f9, #eceff4);
+  background-size: 200% 100%;
+  animation: skeleton 1.2s ease-in-out infinite;
+}
+.skeleton-line.short {
+  width: 45%;
+}
+@keyframes skeleton {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 /* ---------- Prices ---------- */

@@ -4,11 +4,10 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { DistanceRail } from "@/components/DistanceRail";
 import { LogRunForm } from "@/components/LogRunForm";
-import { ReviewCard } from "@/components/ReviewCard";
+import { ReviewsSection } from "@/components/ReviewsSection";
 import { RunRow } from "@/components/RunRow";
-import { ShoePhoto } from "@/components/ShoePhoto";
-import { PhotoField } from "@/components/PhotoField";
-import { deleteShoe, removeShoePhoto, setShoePhoto, toggleRetired } from "@/app/actions";
+import { HeroPhoto } from "@/components/HeroPhoto";
+import { deleteShoe, toggleRetired } from "@/app/actions";
 import { MAX_REVIEW_LINKS, sourceName } from "@/lib/links";
 import { formatPrice } from "@/lib/price-provider";
 import { cheapest } from "@/lib/refresh";
@@ -108,7 +107,7 @@ export default async function ShoePage({
 
       <section style={{ paddingTop: "2.5rem" }}>
         <div className="shoe-hero">
-          <ShoePhoto shoeId={shoe.id} hasPhoto={Boolean(shoe.image)} className="is-hero" />
+          <HeroPhoto shoeId={shoe.id} hasPhoto={Boolean(shoe.image)} />
           <div className="shoe-hero-text">
             <h1 style={{ fontSize: "clamp(1.75rem,4.5vw,2.75rem)" }}>
               {shoe.brand} {shoe.model}
@@ -186,15 +185,19 @@ export default async function ShoePage({
 
         <aside className="section">
           <h2>Reviews</h2>
-          {reviews.length === 0 ? (
-            <p className="empty">No reviews found for this pair yet.</p>
-          ) : (
-            <ul className="review-grid is-column">
-              {reviews.map((link) => (
-                <ReviewCard key={link.id} link={link} />
-              ))}
-            </ul>
-          )}
+          <ReviewsSection
+            shoeId={shoe.id}
+            needsLookup={shoe.reviewsCheckedAt === null}
+            reviews={reviews.map((l) => ({
+              id: l.id,
+              title: l.title,
+              source: l.source,
+              url: l.url,
+              imageUrl: l.imageUrl,
+              excerpt: l.excerpt,
+              publishedAt: l.publishedAt,
+            }))}
+          />
         </aside>
       </div>
 
@@ -249,27 +252,6 @@ export default async function ShoePage({
                 " — set SERPAPI_KEY to show live prices instead of retailer links."}
             </p>
           </>
-        )}
-      </section>
-
-      <section className="section">
-        <h2>Photo</h2>
-        <form action={setShoePhoto} className="form-panel">
-          <input type="hidden" name="shoeId" value={shoe.id} />
-          <PhotoField label={shoe.image ? "Replace the photo" : "Add a photo"} />
-          <div className="run-edit-actions">
-            <button className="btn btn-solid" type="submit">
-              Save photo
-            </button>
-          </div>
-        </form>
-        {shoe.image && (
-          <form action={removeShoePhoto} style={{ marginTop: "0.75rem" }}>
-            <input type="hidden" name="shoeId" value={shoe.id} />
-            <button className="btn btn-quiet" type="submit">
-              Remove photo
-            </button>
-          </form>
         )}
       </section>
 

@@ -183,6 +183,32 @@ export async function removeShoePhoto(formData: FormData): Promise<void> {
   revalidatePath(`/shoes/${shoeId}`);
 }
 
+/**
+ * Searches the review sites for a shoe on demand.
+ *
+ * Called from the shoe page when `reviewsCheckedAt` is null, which is how
+ * shoes added before the finder existed pick up their articles. Runs from the
+ * client after paint rather than during render, so four network round trips
+ * never delay the page.
+ */
+export async function findReviewsNow(shoeId: string): Promise<void> {
+  const userId = await requireUserId();
+  await ownedShoe(shoeId, userId);
+
+  try {
+    await refreshShoeReviews(shoeId);
+  } catch {
+    // Stamp it anyway so a persistently failing source does not make every
+    // page view retry four sites.
+    await prisma.shoe.update({
+      where: { id: shoeId },
+      data: { reviewsCheckedAt: new Date() },
+    });
+  }
+
+  revalidatePath(`/shoes/${shoeId}`);
+}
+
 /** Edits a logged run. Distance, date and notes are all changeable. */
 export async function editRun(
   _prev: ActionResult,
