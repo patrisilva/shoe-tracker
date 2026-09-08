@@ -116,10 +116,14 @@ number and a null.
    `AUTH_SECRET`, `AUTH_URL`, `AUTH_TRUST_HOST=true`, `AUTH_GOOGLE_ID`,
    `AUTH_GOOGLE_SECRET`, `CRON_SECRET`. `AUTH_SECRET` is required in
    production — Auth.js will not start without it.
-5. Generate a domain under Settings → Networking. The **target port is 3000**,
-   the fallback in `next start -p ${PORT:-3000}`; if you set a `PORT` variable
-   yourself, match the domain to that instead. Then set `AUTH_URL` to the
-   generated URL and add the matching callback URL in the Google console.
+5. Generate a domain under Settings → Networking. **The target port must match
+   `PORT`, which Railway injects as `8080`** — not the `3000` fallback in
+   `next start -p ${PORT:-3000}`, which only applies locally. `PORT` does not
+   appear in `railway variable list`, so read it off the boot log instead:
+   Next prints `Local: http://localhost:8080`. A domain pointed at the wrong
+   port gives `502 Application failed to respond` even though the deploy is
+   green and the logs look healthy. Then set `AUTH_URL` to the generated URL
+   and add the matching callback URL in the Google console.
 
 `npm run start` runs `prisma migrate deploy` before booting, so migrations apply
 on every deploy. Commit your migration files — `prisma migrate deploy` will not
