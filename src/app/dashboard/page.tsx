@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { DistanceRail } from "@/components/DistanceRail";
 import { AddShoeForm } from "@/components/AddShoeForm";
 import { UnitPicker } from "@/components/UnitPicker";
+import { ShoePhoto } from "@/components/ShoePhoto";
 import {
   computeDistance,
   formatDate,
@@ -23,7 +24,12 @@ export default async function Dashboard() {
     where: { id: session.user.id },
     select: { unit: true },
   });
-  const unit = user?.unit ?? "MI";
+  // JWT sessions outlive the row they point at, so a deleted account still
+  // presents a well-formed session. Without this the page would render as an
+  // empty rack instead of sending them back to sign in.
+  if (!user) redirect("/api/auth/signout");
+
+  const unit = user.unit;
   const u = unitLabel(unit);
 
   const shoes = await prisma.shoe.findMany({
@@ -32,6 +38,8 @@ export default async function Dashboard() {
     include: {
       runs: { orderBy: { ranOn: "desc" }, take: 1 },
       _count: { select: { runs: true } },
+      // Timestamp only, so listing the rack never loads image bytes.
+      image: { select: { updatedAt: true } },
     },
   });
 
@@ -80,7 +88,18 @@ export default async function Dashboard() {
           </p>
         </div>
       ) : (
-        <ul className="rack">
+        <>
+          <div className="rack-intro">
+            <h1>Your rack</h1>
+            <p>
+              {inService.length}{" "}
+              {inService.length === 1 ? "pair" : "pairs"} in service. The bar
+              shows how much life each one has left — green while there is
+              room, amber past 60%, red once it is time to shop. Open a pair to
+              log a run or read its reviews.
+            </p>
+          </div>
+          <ul className="rack">
           {inService.map((shoe) => {
             const m = computeDistance(
               shoe.startingDistance,
@@ -89,21 +108,26 @@ export default async function Dashboard() {
             );
             const last = shoe.runs[0];
             return (
-              <li key={shoe.id} className="rack-item">
-                <div className="rack-head">
-                  <Link href={`/shoes/${shoe.id}`} className="shoe-title">
-                    {shoe.brand} {shoe.model}
-                    {shoe.nickname && (
-                      <span className="shoe-nickname"> {shoe.nickname}</span>
-                    )}
-                  </Link>
-                  <span className={`odometer state-${m.state}`}>
-                    <span className="num">{formatDistance(m.distance)}</span>
-                    <small>{u}</small>
-                  </span>
-                </div>
+              <li key={shoe.id} className="rack-item has-photo">
+                <Link href={`/shoes/${shoe.id}`} className="rack-thumb">
+                  <ShoePhoto shoeId={shoe.id} hasPhoto={Boolean(shoe.image)} />
+                </Link>
 
-                <DistanceRail distance={m} unit={unit} />
+                <div className="rack-main">
+                  <div className="rack-head">
+                    <Link href={`/shoes/${shoe.id}`} className="shoe-title">
+                      {shoe.brand} {shoe.model}
+                      {shoe.nickname && (
+                        <span className="shoe-nickname"> {shoe.nickname}</span>
+                      )}
+                    </Link>
+                    <span className={`odometer state-${m.state}`}>
+                      <span className="num">{formatDistance(m.distance)}</span>
+                      <small>{u}</small>
+                    </span>
+                  </div>
+
+                  <DistanceRail distance={m} unit={unit} />
 
                 <div className="rack-foot">
                   <span className={`chip state-${m.state}`}>
@@ -124,11 +148,13 @@ export default async function Dashboard() {
                       <Link href={`/shoes/${shoe.id}`}>Log a run</Link>
                     </span>
                   </span>
+                  </div>
                 </div>
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </>
       )}
 
       <section className="section">

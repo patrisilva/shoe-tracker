@@ -89,8 +89,23 @@ model Shoe {
   runs     Run[]
   links    ShoeLink[]
   prices   PriceSnapshot[]
+  image    ShoeImage?
 
   @@index([userId, retiredAt])
+}
+
+/**
+ * A user's own photo of the pair, held in its own table so that listing the
+ * rack never drags image bytes along with it. The browser downscales before
+ * upload, so rows are tens of kilobytes rather than megabytes.
+ */
+model ShoeImage {
+  shoeId    String   @id
+  data      Bytes
+  mimeType  String
+  updatedAt DateTime @updatedAt
+
+  shoe Shoe @relation(fields: [shoeId], references: [id], onDelete: Cascade)
 }
 
 model Run {

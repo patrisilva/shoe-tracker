@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { addShoe, type ActionResult } from "@/app/actions";
+import { PhotoField } from "@/components/PhotoField";
 import { defaultLifespan, unitLabel, type Unit } from "@/lib/units";
 
 function Submit({ label }: { label: string }) {
@@ -34,6 +35,8 @@ export function AddShoeForm({ unit }: { unit: Unit }) {
         <span>Nickname (optional)</span>
         <input name="nickname" placeholder="Daily blues" autoComplete="off" />
       </label>
+
+      <PhotoField />
 
       <div className="field-row">
         <label className="field">

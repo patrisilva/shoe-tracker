@@ -8,6 +8,7 @@ import { hashPassword } from "@/lib/password";
 import { checkPassword, normaliseEmail } from "@/lib/password-rules";
 import { buildReviewLinks, buildRetailLinks } from "@/lib/links";
 import { refreshShoePrices } from "@/lib/refresh";
+import { refreshShoeReviews } from "@/lib/reviews";
 import { calendarDate } from "@/lib/shoe";
 import {
   convert,
@@ -117,6 +118,107 @@ async function ownedShoe(shoeId: string, userId: string) {
   return shoe;
 }
 
+/** The browser downscales first, so anything larger than this is not a photo. */
+const MAX_IMAGE_BYTES = 900_000;
+
+/**
+ * Stores an uploaded shoe photo, if one came with the form.
+ *
+ * The type is taken from the bytes rather than the client-supplied MIME, since
+ * that value is trivially spoofed and gets echoed back by the image route.
+ */
+async function saveShoeImage(shoeId: string, formData: FormData): Promise<void> {
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return;
+  if (file.size > MAX_IMAGE_BYTES) return;
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const sniffed = sniffImageType(bytes);
+  if (!sniffed) return;
+
+  await prisma.shoeImage.upsert({
+    where: { shoeId },
+    create: { shoeId, data: bytes, mimeType: sniffed },
+    update: { data: bytes, mimeType: sniffed },
+  });
+}
+
+/** Magic-number check. Returns null for anything that is not a real image. */
+function sniffImageType(b: Buffer): string | null {
+  if (b.length < 12) return null;
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (
+    b[0] === 0x89 &&
+    b[1] === 0x50 &&
+    b[2] === 0x4e &&
+    b[3] === 0x47
+  )
+    return "image/png";
+  if (
+    b.toString("ascii", 0, 4) === "RIFF" &&
+    b.toString("ascii", 8, 12) === "WEBP"
+  )
+    return "image/webp";
+  return null;
+}
+
+/** Replaces the photo on a shoe the caller owns. */
+export async function setShoePhoto(formData: FormData): Promise<void> {
+  const userId = await requireUserId();
+  const shoeId = String(formData.get("shoeId") ?? "");
+  await ownedShoe(shoeId, userId);
+
+  await saveShoeImage(shoeId, formData);
+  revalidatePath("/dashboard");
+  revalidatePath(`/shoes/${shoeId}`);
+}
+
+export async function removeShoePhoto(formData: FormData): Promise<void> {
+  const userId = await requireUserId();
+  const shoeId = String(formData.get("shoeId") ?? "");
+  await ownedShoe(shoeId, userId);
+
+  await prisma.shoeImage.deleteMany({ where: { shoeId } });
+  revalidatePath("/dashboard");
+  revalidatePath(`/shoes/${shoeId}`);
+}
+
+/** Edits a logged run. Distance, date and notes are all changeable. */
+export async function editRun(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const unit = await currentUnit(userId);
+  const runId = String(formData.get("runId") ?? "");
+  const distance = Number(formData.get("distance") ?? 0);
+  const ranOnRaw = String(formData.get("ranOn") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  if (!Number.isFinite(distance) || distance <= 0)
+    return { error: "Enter a distance greater than zero." };
+
+  const ceiling = unit === "KM" ? 320 : 200;
+  if (distance > ceiling)
+    return { error: `That is over ${ceiling} ${unitName(unit)}. Check the number.` };
+
+  const run = await prisma.run.findFirst({ where: { id: runId, userId } });
+  if (!run) return { error: "That run no longer exists." };
+
+  await prisma.run.update({
+    where: { id: runId },
+    data: {
+      distance,
+      ranOn: (ranOnRaw && calendarDate(ranOnRaw)) || run.ranOn,
+      notes,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/shoes/${run.shoeId}`);
+  return {};
+}
+
 export async function addShoe(
   _prev: ActionResult,
   formData: FormData
@@ -155,8 +257,15 @@ export async function addShoe(
     },
   });
 
-  // Seed today's prices so the shoe page has something on first view.
-  await refreshShoePrices(shoe.id).catch(() => undefined);
+  await saveShoeImage(shoe.id, formData);
+
+  // Seed prices and look for real review articles so the shoe page has
+  // something on first view. Both reach out over the network, so neither is
+  // allowed to fail the creation — the page degrades to search links.
+  await Promise.allSettled([
+    refreshShoePrices(shoe.id),
+    refreshShoeReviews(shoe.id),
+  ]);
 
   revalidatePath("/dashboard");
   redirect(`/shoes/${shoe.id}`);

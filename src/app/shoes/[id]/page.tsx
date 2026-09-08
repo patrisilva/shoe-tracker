@@ -5,7 +5,10 @@ import { prisma } from "@/lib/db";
 import { DistanceRail } from "@/components/DistanceRail";
 import { LogRunForm } from "@/components/LogRunForm";
 import { ReviewCard } from "@/components/ReviewCard";
-import { deleteRun, deleteShoe, toggleRetired } from "@/app/actions";
+import { RunRow } from "@/components/RunRow";
+import { ShoePhoto } from "@/components/ShoePhoto";
+import { PhotoField } from "@/components/PhotoField";
+import { deleteShoe, removeShoePhoto, setShoePhoto, toggleRetired } from "@/app/actions";
 import { MAX_REVIEW_LINKS, sourceName } from "@/lib/links";
 import { formatPrice } from "@/lib/price-provider";
 import { cheapest } from "@/lib/refresh";
@@ -32,7 +35,11 @@ export default async function ShoePage({
     where: { id: session.user.id },
     select: { unit: true },
   });
-  const unit = user?.unit ?? "MI";
+  // A JWT for a deleted account would otherwise 404 here, which reads as "no
+  // such shoe" rather than "you are not signed in any more".
+  if (!user) redirect("/api/auth/signout");
+
+  const unit = user.unit;
   const u = unitLabel(unit);
 
   const shoe = await prisma.shoe.findFirst({
@@ -40,6 +47,8 @@ export default async function ShoePage({
     include: {
       runs: { orderBy: { ranOn: "desc" }, take: 50 },
       links: { orderBy: { position: "asc" } },
+      // Just the timestamp: enough to know a photo exists without loading it.
+      image: { select: { updatedAt: true } },
     },
   });
   if (!shoe) notFound();
@@ -70,6 +79,17 @@ export default async function ShoePage({
       })
     : [];
   const best = cheapest(prices);
+  const hasRealPrices = prices.some((p) => p.priceCents !== null);
+
+  // Three is enough to compare; more is a list to scroll rather than a choice
+  // to make. Cheapest first when real prices exist, otherwise catalogue order.
+  const buyAgain = (
+    hasRealPrices
+      ? [...prices].sort(
+          (a, b) => (a.priceCents ?? Infinity) - (b.priceCents ?? Infinity)
+        )
+      : prices
+  ).slice(0, 3);
 
   const reviews = shoe.links
     .filter((l) => l.kind === "REVIEW")
@@ -87,13 +107,22 @@ export default async function ShoePage({
       </header>
 
       <section style={{ paddingTop: "2.5rem" }}>
-        <div className="rack-head">
-          <h1 style={{ fontSize: "clamp(2rem,5vw,3rem)" }}>
-            {shoe.brand} {shoe.model}
-            {shoe.nickname && (
-              <span className="shoe-nickname"> {shoe.nickname}</span>
-            )}
-          </h1>
+        <div className="shoe-hero">
+          <ShoePhoto shoeId={shoe.id} hasPhoto={Boolean(shoe.image)} className="is-hero" />
+          <div className="shoe-hero-text">
+            <h1 style={{ fontSize: "clamp(1.75rem,4.5vw,2.75rem)" }}>
+              {shoe.brand} {shoe.model}
+              {shoe.nickname && (
+                <span className="shoe-nickname"> {shoe.nickname}</span>
+              )}
+            </h1>
+          </div>
+        </div>
+
+        <div className="rack-head" style={{ marginTop: "1.25rem" }}>
+          <span className="meta">
+            {shoe.runs.length} {shoe.runs.length === 1 ? "run" : "runs"} logged
+          </span>
           <span className={`odometer state-${m.state}`}>
             <span className="num">{formatDistance(m.distance)}</span>
             <small>
@@ -127,22 +156,51 @@ export default async function ShoePage({
         </div>
       </section>
 
-      <section className="section">
-        <h2>Reviews</h2>
-        {reviews.length === 0 ? (
-          <p className="empty">No reviews found for this pair yet.</p>
-        ) : (
-          <ul className="review-grid">
-            {reviews.map((link) => (
-              <ReviewCard key={link.id} link={link} />
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* Run log leads, with reviews alongside it: logging is the thing done
+          weekly, reading a review the thing done once. */}
+      <div className="shoe-columns">
+        <section className="section">
+          <h2>Run log</h2>
+          {shoe.runs.length === 0 ? (
+            <p className="empty">
+              Nothing logged yet. Your first run shows up here.
+            </p>
+          ) : (
+            <ul className="stack">
+              {shoe.runs.map((run) => (
+                <RunRow
+                  key={run.id}
+                  unit={unit}
+                  run={{
+                    id: run.id,
+                    distance: run.distance,
+                    ranOn: run.ranOn.toISOString().slice(0, 10),
+                    ranOnLabel: formatDate(run.ranOn),
+                    notes: run.notes,
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <aside className="section">
+          <h2>Reviews</h2>
+          {reviews.length === 0 ? (
+            <p className="empty">No reviews found for this pair yet.</p>
+          ) : (
+            <ul className="review-grid is-column">
+              {reviews.map((link) => (
+                <ReviewCard key={link.id} link={link} />
+              ))}
+            </ul>
+          )}
+        </aside>
+      </div>
 
       <section className="section">
-        <h2>Where to buy another pair</h2>
-        {prices.length === 0 ? (
+        <h2>Buy again</h2>
+        {buyAgain.length === 0 ? (
           <p className="empty">
             Prices refresh once a day. Nothing has been checked for this pair
             yet.
@@ -150,7 +208,7 @@ export default async function ShoePage({
         ) : (
           <>
             <ul className="price-grid">
-              {prices.map((p) => {
+              {buyAgain.map((p) => {
                 const amount = formatPrice(p.priceCents, p.currency);
                 const isBest = best?.id === p.id;
                 return (
@@ -158,19 +216,28 @@ export default async function ShoePage({
                     key={p.id}
                     className={`price-row${isBest ? " is-best" : ""}`}
                   >
-                    <span
-                      className={`price-amount${
-                        amount ? "" : " price-amount-none"
-                      }`}
+                    <span className="price-lead">
+                      <span
+                        className={`price-amount${
+                          amount ? "" : " price-amount-none"
+                        }`}
+                      >
+                        {amount ?? "See price"}
+                      </span>
+                      <span className="price-retailer">
+                        {sourceName(p.retailer)}
+                        {isBest && amount && (
+                          <span className="price-best-flag">Cheapest</span>
+                        )}
+                      </span>
+                    </span>
+                    <a
+                      className="btn btn-solid"
+                      href={p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      {amount ?? "Price at retailer"}
-                    </span>
-                    <span className="price-retailer">
-                      {sourceName(p.retailer)}
-                    </span>
-                    {isBest && <span className="price-best-flag">Cheapest</span>}
-                    <a href={p.url} target="_blank" rel="noopener noreferrer">
-                      Buy
+                      Buy at {sourceName(p.retailer)}
                     </a>
                   </li>
                 );
@@ -178,45 +245,31 @@ export default async function ShoePage({
             </ul>
             <p className="meta" style={{ marginTop: "0.75rem" }}>
               Checked {latest!.checkedAt.toLocaleString("en-US")}
+              {!hasRealPrices &&
+                " — set SERPAPI_KEY to show live prices instead of retailer links."}
             </p>
           </>
         )}
       </section>
 
       <section className="section">
-        <h2>Run log</h2>
-        {shoe.runs.length === 0 ? (
-          <p className="empty">Nothing logged yet.</p>
-        ) : (
-          <ul className="stack">
-            {shoe.runs.map((run) => (
-              <li key={run.id}>
-                <span>
-                  <strong style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {formatDistance(run.distance)} {u}
-                  </strong>
-                  {run.notes && (
-                    <span className="meta" style={{ marginLeft: "1rem" }}>
-                      {run.notes}
-                    </span>
-                  )}
-                </span>
-                <span className="meta">
-                  {formatDate(run.ranOn)}
-                  <form action={deleteRun} style={{ display: "inline" }}>
-                    <input type="hidden" name="runId" value={run.id} />
-                    <button
-                      className="btn btn-quiet"
-                      type="submit"
-                      style={{ marginLeft: "1rem" }}
-                    >
-                      Delete
-                    </button>
-                  </form>
-                </span>
-              </li>
-            ))}
-          </ul>
+        <h2>Photo</h2>
+        <form action={setShoePhoto} className="form-panel">
+          <input type="hidden" name="shoeId" value={shoe.id} />
+          <PhotoField label={shoe.image ? "Replace the photo" : "Add a photo"} />
+          <div className="run-edit-actions">
+            <button className="btn btn-solid" type="submit">
+              Save photo
+            </button>
+          </div>
+        </form>
+        {shoe.image && (
+          <form action={removeShoePhoto} style={{ marginTop: "0.75rem" }}>
+            <input type="hidden" name="shoeId" value={shoe.id} />
+            <button className="btn btn-quiet" type="submit">
+              Remove photo
+            </button>
+          </form>
         )}
       </section>
 
