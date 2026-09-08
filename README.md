@@ -95,12 +95,31 @@ number and a null.
 ## Deploying to Railway
 
 1. Push this repo to GitHub, then **New Project → Deploy from GitHub repo**.
-2. Add the **Postgres** plugin. Railway injects `DATABASE_URL` into the service.
-3. Set the remaining variables from `.env.example` on the web service:
+2. Add the **Postgres** database.
+3. On the **web service**, add `DATABASE_URL` as a reference to it:
+
+   ```
+   DATABASE_URL=${{Postgres.DATABASE_URL}}
+   ```
+
+   Adding the database does *not* put `DATABASE_URL` into the web service by
+   itself — the variable only exists on the Postgres service until you
+   reference it. Without it the boot fails on `prisma migrate deploy` with
+   `P1012: Environment variable not found: DATABASE_URL`, and because the start
+   command is an `&&` chain the server never binds a port, so the healthcheck
+   fails too. Use `DATABASE_URL` rather than `DATABASE_PUBLIC_URL`: it routes
+   over the private network, which is faster and free.
+
+   If the Postgres service is not literally named `Postgres`, use its actual
+   name in the reference.
+4. Set the remaining variables from `.env.example` on the web service:
    `AUTH_SECRET`, `AUTH_URL`, `AUTH_TRUST_HOST=true`, `AUTH_GOOGLE_ID`,
-   `AUTH_GOOGLE_SECRET`, `CRON_SECRET`.
-4. Generate a domain under Settings → Networking, then set `AUTH_URL` to that
-   URL and add the matching callback URL in the Google console.
+   `AUTH_GOOGLE_SECRET`, `CRON_SECRET`. `AUTH_SECRET` is required in
+   production — Auth.js will not start without it.
+5. Generate a domain under Settings → Networking. The **target port is 3000**,
+   the fallback in `next start -p ${PORT:-3000}`; if you set a `PORT` variable
+   yourself, match the domain to that instead. Then set `AUTH_URL` to the
+   generated URL and add the matching callback URL in the Google console.
 
 `npm run start` runs `prisma migrate deploy` before booting, so migrations apply
 on every deploy. Commit your migration files — `prisma migrate deploy` will not
