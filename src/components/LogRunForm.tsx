@@ -39,7 +39,7 @@ export function LogRunForm({ shoeId, unit }: { shoeId: string; unit: Unit }) {
             name="distance"
             type="number"
             min="0.1"
-            step="0.1"
+            step="any"
             placeholder={unit === "KM" ? "8.4" : "5.2"}
             required
           />

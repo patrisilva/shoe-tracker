@@ -4,8 +4,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { DistanceRail } from "@/components/DistanceRail";
 import { LogRunForm } from "@/components/LogRunForm";
-import { AddReviewForm } from "@/components/AddReviewForm";
-import { deleteRun, deleteShoe, removeReviewLink, toggleRetired } from "@/app/actions";
+import { ReviewCard } from "@/components/ReviewCard";
+import { deleteRun, deleteShoe, toggleRetired } from "@/app/actions";
 import { MAX_REVIEW_LINKS, sourceName } from "@/lib/links";
 import { formatPrice } from "@/lib/price-provider";
 import { cheapest } from "@/lib/refresh";
@@ -91,11 +91,11 @@ export default async function ShoePage({
           <h1 style={{ fontSize: "clamp(2rem,5vw,3rem)" }}>
             {shoe.brand} {shoe.model}
             {shoe.nickname && (
-              <span className="shoe-nickname"> — {shoe.nickname}</span>
+              <span className="shoe-nickname"> {shoe.nickname}</span>
             )}
           </h1>
           <span className={`odometer state-${m.state}`}>
-            {formatDistance(m.distance)}
+            <span className="num">{formatDistance(m.distance)}</span>
             <small>
               of {m.lifespan} {u}
             </small>
@@ -105,7 +105,9 @@ export default async function ShoePage({
         <DistanceRail distance={m} unit={unit} />
 
         <div className="rack-foot">
-          <span className={`state-${m.state}`}>{wearMessage(m, unit)}</span>
+          <span className={`chip state-${m.state}`}>
+            {wearMessage(m, unit)}
+          </span>
           <span>
             {shoe.startingDistance > 0 && (
               <span>
@@ -128,65 +130,55 @@ export default async function ShoePage({
       <section className="section">
         <h2>Reviews</h2>
         {reviews.length === 0 ? (
-          <p className="empty">
-            No reviews saved. Add one below and it shows up here.
-          </p>
+          <p className="empty">No reviews found for this pair yet.</p>
         ) : (
-          <ul className="stack">
+          <ul className="review-grid">
             {reviews.map((link) => (
-              <li key={link.id}>
-                <a href={link.url} target="_blank" rel="noopener noreferrer">
-                  {link.title}
-                </a>
-                <span className="meta">
-                  {sourceName(link.source)}
-                  <form action={removeReviewLink} style={{ display: "inline" }}>
-                    <input type="hidden" name="linkId" value={link.id} />
-                    <button
-                      className="btn btn-quiet"
-                      type="submit"
-                      style={{ marginLeft: "1rem" }}
-                    >
-                      Remove
-                    </button>
-                  </form>
-                </span>
-              </li>
+              <ReviewCard key={link.id} link={link} />
             ))}
           </ul>
         )}
-        <AddReviewForm
-          shoeId={shoe.id}
-          atLimit={reviews.length >= MAX_REVIEW_LINKS}
-        />
       </section>
 
       <section className="section">
         <h2>Where to buy another pair</h2>
         {prices.length === 0 ? (
           <p className="empty">
-            Prices refresh once a day. Nothing has been checked for this shoe yet.
+            Prices refresh once a day. Nothing has been checked for this pair
+            yet.
           </p>
         ) : (
           <>
-            <p className="meta" style={{ margin: "0.85rem 0 0" }}>
-              Checked {latest!.checkedAt.toLocaleString("en-US")}
-              {best && (
-                <> — cheapest found is {formatPrice(best.priceCents, best.currency)}</>
-              )}
-            </p>
-            <ul className="stack" style={{ marginTop: "0.5rem" }}>
-              {prices.map((p) => (
-                <li key={p.id}>
-                  <a href={p.url} target="_blank" rel="noopener noreferrer">
-                    {sourceName(p.retailer)}
-                  </a>
-                  <span className="meta">
-                    {formatPrice(p.priceCents, p.currency) ?? "Check current price"}
-                  </span>
-                </li>
-              ))}
+            <ul className="price-grid">
+              {prices.map((p) => {
+                const amount = formatPrice(p.priceCents, p.currency);
+                const isBest = best?.id === p.id;
+                return (
+                  <li
+                    key={p.id}
+                    className={`price-row${isBest ? " is-best" : ""}`}
+                  >
+                    <span
+                      className={`price-amount${
+                        amount ? "" : " price-amount-none"
+                      }`}
+                    >
+                      {amount ?? "Price at retailer"}
+                    </span>
+                    <span className="price-retailer">
+                      {sourceName(p.retailer)}
+                    </span>
+                    {isBest && <span className="price-best-flag">Cheapest</span>}
+                    <a href={p.url} target="_blank" rel="noopener noreferrer">
+                      Buy
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
+            <p className="meta" style={{ marginTop: "0.75rem" }}>
+              Checked {latest!.checkedAt.toLocaleString("en-US")}
+            </p>
           </>
         )}
       </section>

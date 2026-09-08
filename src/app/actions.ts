@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { auth, signIn } from "@/auth";
 import { prisma } from "@/lib/db";
-import { buildReviewLinks, buildRetailLinks, MAX_REVIEW_LINKS } from "@/lib/links";
+import { hashPassword } from "@/lib/password";
+import { checkPassword, normaliseEmail } from "@/lib/password-rules";
+import { buildReviewLinks, buildRetailLinks } from "@/lib/links";
 import { refreshShoePrices } from "@/lib/refresh";
 import { calendarDate } from "@/lib/shoe";
 import {
@@ -16,6 +18,82 @@ import {
 } from "@/lib/units";
 
 export type ActionResult = { error?: string };
+
+/**
+ * Creates an email-and-password account, then signs it in.
+ *
+ * Credentials sign-in bypasses the Prisma adapter's user creation, so the row
+ * is written here and `authorize` only ever verifies an existing one.
+ */
+export async function signUpWithPassword(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const email = normaliseEmail(String(formData.get("email") ?? ""));
+  const password = String(formData.get("password") ?? "");
+  const name = String(formData.get("name") ?? "").trim() || null;
+
+  if (!email) return { error: "Enter a valid email address." };
+
+  const badPassword = checkPassword(password);
+  if (badPassword) return { error: badPassword };
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    // Says the same thing whether the account is password or Google backed,
+    // so this is not a way to enumerate which emails are registered.
+    return {
+      error: "That email already has an account. Sign in instead.",
+    };
+  }
+
+  await prisma.user.create({
+    data: { email, name, passwordHash: await hashPassword(password) },
+  });
+
+  // Throws a redirect on success, so nothing after this runs.
+  await signIn("credentials", {
+    email,
+    password,
+    redirectTo: "/dashboard",
+  });
+
+  return {};
+}
+
+/** Signs in an existing email-and-password account. */
+export async function signInWithPassword(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const email = normaliseEmail(String(formData.get("email") ?? ""));
+  const password = String(formData.get("password") ?? "");
+
+  if (!email || !password)
+    return { error: "Enter your email and password." };
+
+  try {
+    await signIn("credentials", {
+      email,
+      password,
+      redirectTo: "/dashboard",
+    });
+  } catch (err) {
+    // next/navigation signals a successful redirect by throwing, so that one
+    // has to be rethrown rather than reported as a failed sign-in.
+    if (
+      err &&
+      typeof err === "object" &&
+      "digest" in err &&
+      String((err as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT")
+    ) {
+      throw err;
+    }
+    return { error: "That email and password do not match an account." };
+  }
+
+  return {};
+}
 
 async function requireUserId(): Promise<string> {
   const session = await auth();
@@ -157,40 +235,6 @@ export async function deleteShoe(formData: FormData): Promise<void> {
   redirect("/dashboard");
 }
 
-/** Swap one of the three review links for a URL the user found themselves. */
-export async function replaceReviewLink(
-  _prev: ActionResult,
-  formData: FormData
-): Promise<ActionResult> {
-  const userId = await requireUserId();
-  const shoeId = String(formData.get("shoeId") ?? "");
-  const url = String(formData.get("url") ?? "").trim();
-  const title = String(formData.get("title") ?? "").trim();
-
-  if (!/^https?:\/\//i.test(url))
-    return { error: "Enter a full link starting with https://" };
-  if (!title) return { error: "Give the review a name so you recognise it later." };
-
-  await ownedShoe(shoeId, userId);
-
-  const existing = await prisma.shoeLink.findMany({
-    where: { shoeId, kind: "REVIEW" },
-    orderBy: { position: "asc" },
-  });
-
-  // Three is the ceiling from the brief, so adding a fourth drops the last one.
-  if (existing.length >= MAX_REVIEW_LINKS) {
-    await prisma.shoeLink.delete({ where: { id: existing[existing.length - 1].id } });
-  }
-
-  await prisma.shoeLink.create({
-    data: { shoeId, kind: "REVIEW", title, source: "custom", url, position: -1 },
-  });
-
-  revalidatePath(`/shoes/${shoeId}`);
-  return {};
-}
-
 /**
  * Switches the account's unit and converts everything already stored.
  *
@@ -236,18 +280,4 @@ export async function setUnit(formData: FormData): Promise<void> {
 
   revalidatePath("/dashboard");
   for (const shoe of shoes) revalidatePath(`/shoes/${shoe.id}`);
-}
-
-export async function removeReviewLink(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
-  const linkId = String(formData.get("linkId") ?? "");
-
-  const link = await prisma.shoeLink.findUnique({
-    where: { id: linkId },
-    include: { shoe: true },
-  });
-  if (!link || link.shoe.userId !== userId) return;
-
-  await prisma.shoeLink.delete({ where: { id: linkId } });
-  revalidatePath(`/shoes/${link.shoeId}`);
 }

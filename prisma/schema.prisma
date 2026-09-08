@@ -15,6 +15,9 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  // Set only for accounts created with email and password. Null for OAuth
+  // users, which is what stops a Google-only account being password-guessed.
+  passwordHash  String?
   accounts      Account[]
   sessions      Session[]
   shoes         Shoe[]
@@ -120,6 +123,13 @@ model ShoeLink {
   source   String
   url      String   @db.Text
   position Int      @default(0)
+
+  // Filled in when a real article is matched for this shoe. Null while the
+  // link is still only a deep link into the site's own search, which is what
+  // a freshly created shoe starts with.
+  imageUrl  String?   @db.Text
+  excerpt   String?   @db.Text
+  publishedAt DateTime?
 
   shoe Shoe @relation(fields: [shoeId], references: [id], onDelete: Cascade)
 

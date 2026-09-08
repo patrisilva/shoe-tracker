@@ -34,7 +34,7 @@ export function DistanceRail({
       >
         <div
           className={`rail-fill bg-${distance.state}`}
-          style={{ width: `${pct}%` }}
+          style={{ "--pct": `${pct}%` } as React.CSSProperties}
         />
         {ticks.map((d) => (
           <div
@@ -43,10 +43,6 @@ export function DistanceRail({
             style={{ left: `${(d / distance.lifespan) * 100}%` }}
           />
         ))}
-        <div
-          className={`rail-marker bg-${distance.state}`}
-          style={{ left: `${pct}%` }}
-        />
       </div>
       <div className="rail-scale" aria-hidden="true">
         <span>0</span>

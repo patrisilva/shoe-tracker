@@ -38,11 +38,14 @@ export function AddShoeForm({ unit }: { unit: Unit }) {
       <div className="field-row">
         <label className="field">
           <span>Already on them ({unitLabel(unit)})</span>
+          {/* step="any" on purpose: a numeric step builds a validity grid off
+              min, so step="10" from min="1" rejects a round 400. The columns
+              are Float and addShoe validates the range server-side. */}
           <input
             name="startingDistance"
             type="number"
             min="0"
-            step="0.1"
+            step="any"
             defaultValue="0"
           />
         </label>
@@ -52,7 +55,7 @@ export function AddShoeForm({ unit }: { unit: Unit }) {
             name="lifespanDistance"
             type="number"
             min="1"
-            step="10"
+            step="any"
             defaultValue={defaultLifespan(unit)}
           />
         </label>

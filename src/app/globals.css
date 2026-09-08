@@ -1,17 +1,42 @@
+/**
+ * Shoe Rack — design system
+ *
+ * Direction: light cool ground, heavy geometric display type, one vivid orange
+ * accent, generous radius. Boldness is spent in two places only — the headline
+ * and the wear gauge. Everything else stays quiet.
+ */
+
 :root {
-  --paper: #f4f3ef;
-  --ink: #1a232e;
-  --ink-soft: #5c6875;
-  --rule: #dcd9d2;
-  --rail: #cfccc4;
+  --paper: #f7f8fa;
+  --card: #ffffff;
+  --ink: #131a2b;
+  --ink-soft: #5b6b84;
+  --ink-faint: #8b99ad;
+  --rule: #e6e9ef;
 
-  --fresh: #2a6f5a;
-  --watch: #a86a10;
-  --worn: #a5372a;
-  --link: #2743b8;
+  --flame: #ff5a1f;
+  --flame-deep: #e8410a;
+  --flame-lift: #ff8a3d;
+  --flame-wash: #ffede6;
 
-  --measure: 68ch;
-  --gutter: clamp(1.25rem, 5vw, 3rem);
+  --fresh: #12a150;
+  --fresh-wash: #e6f7ed;
+  --watch: #e08700;
+  --watch-wash: #fff4e0;
+  --worn: #dc2626;
+  --worn-wash: #fdeaea;
+
+  --shell: 68rem;
+  --gutter: clamp(1.25rem, 5vw, 2.5rem);
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgba(19, 26, 43, 0.04),
+    0 8px 24px -12px rgba(19, 26, 43, 0.12);
+  --shadow-flame: 0 8px 20px -6px rgba(255, 90, 31, 0.45);
 }
 
 *,
@@ -30,46 +55,56 @@ body {
   color: var(--ink);
   font-family: var(--font-body), system-ui, sans-serif;
   font-size: 1rem;
-  line-height: 1.55;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-display), var(--font-body), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0;
+}
+
 a {
-  color: var(--link);
-  text-decoration-thickness: 1px;
+  color: var(--flame-deep);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 :focus-visible {
-  outline: 2px solid var(--link);
+  outline: 2.5px solid var(--flame);
   outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* ---------- shell ---------- */
+/* Every distance on the page is a measurement, so figures never reflow. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Shell ---------- */
 
 .shell {
-  max-width: 62rem;
+  max-width: var(--shell);
   margin: 0 auto;
   padding: 0 var(--gutter) 5rem;
 }
 
 .masthead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 1.75rem 0 1.5rem;
-  border-bottom: 2px solid var(--ink);
-}
-
-.wordmark {
-  font-family: var(--font-display), sans-serif;
-  font-weight: 700;
-  font-size: 1.5rem;
-  letter-spacing: 0.01em;
-  color: var(--ink);
-  text-decoration: none;
+  padding: 1.5rem 0;
 }
 
 .masthead-side {
@@ -80,102 +115,364 @@ a {
   color: var(--ink-soft);
 }
 
-/* ---------- headings ---------- */
-
-h1,
-h2,
-h3 {
-  font-family: var(--font-display), sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.005em;
-  margin: 0;
+.wordmark {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.wordmark:hover {
+  text-decoration: none;
 }
 
-h1 {
-  font-size: clamp(2.5rem, 7vw, 4rem);
-  line-height: 1.02;
-}
-
-h2 {
-  font-size: 1.5rem;
-  line-height: 1.15;
-}
-
-h3 {
-  font-size: 1.125rem;
-}
-
-p {
-  max-width: var(--measure);
-}
-
-.lede {
-  font-size: 1.15rem;
-  color: var(--ink-soft);
-  margin: 1rem 0 2rem;
-}
-
-/* ---------- buttons ---------- */
+/* ---------- Buttons ---------- */
 
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   font: inherit;
-  font-weight: 500;
-  padding: 0.6rem 1.1rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  background: transparent;
+  font-weight: 600;
+  padding: 0.7rem 1.25rem;
+  border: 1.5px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--card);
   color: var(--ink);
   cursor: pointer;
   text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-
 .btn:hover {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--paper);
+  border-color: var(--ink-faint);
+  text-decoration: none;
 }
 
 .btn-solid {
-  background: var(--ink);
-  color: var(--paper);
+  background: linear-gradient(180deg, var(--flame-lift), var(--flame));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--shadow-flame);
 }
-
 .btn-solid:hover {
-  background: transparent;
-  color: var(--ink);
+  background: linear-gradient(180deg, var(--flame), var(--flame-deep));
+  border-color: transparent;
 }
 
 .btn-quiet {
   border-color: transparent;
-  padding-inline: 0;
-  color: var(--link);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  background: transparent;
+  padding-inline: 0.25rem;
+  color: var(--flame-deep);
+  font-weight: 600;
 }
-
 .btn-quiet:hover {
   background: transparent;
   color: var(--ink);
 }
 
+.btn-lg {
+  font-size: 1.05rem;
+  padding: 0.95rem 1.75rem;
+  border-radius: var(--r-lg);
+}
+
 .btn[disabled] {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: progress;
 }
 
-/* ---------- the distance rail: the one loud element ---------- */
+/* ---------- Landing ---------- */
+
+.hero {
+  text-align: center;
+  padding: 3.5rem 0 4rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--r-pill);
+  background: var(--flame-wash);
+  color: var(--flame-deep);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.badge svg {
+  width: 1em;
+  height: 1em;
+}
+
+.hero h1 {
+  font-size: clamp(2.4rem, 7vw, 4.25rem);
+  margin: 1.5rem auto 0;
+  max-width: 22ch;
+}
+/* The brief's reference sets the second line in the accent colour. */
+.hero h1 .turn {
+  display: block;
+  background: linear-gradient(95deg, var(--flame-deep), var(--flame-lift));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lede {
+  margin: 1.5rem auto 0;
+  max-width: 46ch;
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+}
+
+.hero-cta {
+  margin-top: 2.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ---------- Feature row ---------- */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 2.5rem;
+  padding: 3.5rem 0;
+  border-top: 1px solid var(--rule);
+  text-align: center;
+}
+.feature h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.feature p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.feature-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1.1rem;
+  border-radius: var(--r-md);
+  background: var(--flame-wash);
+  color: var(--flame-deep);
+}
+.feature-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.site-foot {
+  padding: 2rem 0;
+  border-top: 1px solid var(--rule);
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--ink-faint);
+}
+
+/* ---------- Auth ---------- */
+
+.auth-card {
+  max-width: 25rem;
+  margin: 0 auto;
+  padding: 1.75rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+}
+
+.provider-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.provider-stack form {
+  display: block;
+}
+
+.provider-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.8rem 1.1rem;
+  border: 1.5px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.provider-btn:hover {
+  background: var(--paper);
+  border-color: var(--ink-faint);
+}
+.provider-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.2rem;
+  height: 1.2rem;
+}
+.provider-mark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.provider-apple {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.provider-apple:hover {
+  background: #0a0f1c;
+  border-color: #0a0f1c;
+}
+
+/* Divider carrying a word, so the two routes read as alternatives. */
+.auth-split {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+}
+.auth-split::before,
+.auth-split::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.auth-toggle {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* ---------- Forms ---------- */
+
+.form-panel {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+.field {
+  display: block;
+  margin-bottom: 0.9rem;
+}
+.field > span {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.field input {
+  width: 100%;
+  font: inherit;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--ink);
+}
+.field input:focus-visible {
+  outline: 2.5px solid var(--flame);
+  outline-offset: 0;
+  border-color: var(--flame);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.9rem;
+}
+
+.error {
+  margin: 0 0 0.9rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--r-md);
+  background: var(--worn-wash);
+  color: #a3180f;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+/* ---------- Sections ---------- */
+
+.section {
+  padding-top: 3rem;
+}
+.section > h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
+.empty {
+  padding: 2rem;
+  background: var(--card);
+  border: 1px dashed var(--rule);
+  border-radius: var(--r-lg);
+  color: var(--ink-soft);
+}
+.empty h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+}
+.empty p {
+  margin: 0;
+  max-width: 48ch;
+}
+
+.meta {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+/* ---------- The rack ---------- */
 
 .rack {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  gap: 1rem;
 }
 
 .rack-item {
-  padding: 2rem 0;
-  border-bottom: 1px solid var(--rule);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 1.35rem 1.5rem;
+  box-shadow: var(--shadow-card);
 }
 
 .rack-head {
@@ -187,101 +484,35 @@ p {
 }
 
 .shoe-title {
-  font-family: var(--font-display), sans-serif;
-  font-size: 1.6rem;
-  font-weight: 600;
-  line-height: 1.1;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--ink);
-  text-decoration: none;
 }
-
-.shoe-title:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .shoe-nickname {
-  color: var(--ink-soft);
-  font-weight: 400;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-weight: 500;
+  color: var(--ink-faint);
 }
 
 .odometer {
-  font-family: var(--font-display), sans-serif;
-  font-weight: 700;
-  font-size: clamp(2.25rem, 6vw, 3.25rem);
-  line-height: 0.9;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.9rem, 5vw, 2.5rem);
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
 }
-
 .odometer small {
-  font-size: 0.32em;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--ink-soft);
-  margin-left: 0.35em;
-}
-
-.rail {
-  position: relative;
-  margin: 1.6rem 0 0.4rem;
-  height: 2px;
-  background: var(--rail);
-}
-
-.rail-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  height: 2px;
-}
-
-.rail-tick {
-  position: absolute;
-  top: -5px;
-  width: 1px;
-  height: 12px;
-  background: var(--rail);
-}
-
-.rail-marker {
-  position: absolute;
-  top: 50%;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 3px solid var(--paper);
-  transform: translate(-50%, -50%);
-}
-
-.rail-scale {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-soft);
-  margin-top: 0.65rem;
-}
-
-.state-fresh {
-  color: var(--fresh);
-}
-.state-watch {
-  color: var(--watch);
-}
-.state-worn,
-.state-over {
-  color: var(--worn);
-}
-
-.bg-fresh {
-  background: var(--fresh);
-}
-.bg-watch {
-  background: var(--watch);
-}
-.bg-worn,
-.bg-over {
-  background: var(--worn);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-faint);
+  letter-spacing: 0;
 }
 
 .rack-foot {
@@ -290,220 +521,298 @@ p {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-top: 1rem;
+  margin-top: 0.9rem;
   font-size: 0.9rem;
   color: var(--ink-soft);
 }
-
 .rack-foot span + span {
-  margin-left: 1.25rem;
+  margin-left: 1rem;
 }
 
-/* ---------- forms ---------- */
-
-.field {
-  display: block;
-  margin-bottom: 1rem;
+/* Wear state — one chip, one bar colour, nothing else tinted. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--r-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.chip::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.chip.state-fresh {
+  background: var(--fresh-wash);
+  color: #0b7038;
+}
+.chip.state-watch {
+  background: var(--watch-wash);
+  color: #9a5c00;
+}
+.chip.state-worn,
+.chip.state-over {
+  background: var(--worn-wash);
+  color: #a3180f;
 }
 
-.field > span {
-  display: block;
-  font-size: 0.875rem;
-  color: var(--ink-soft);
-  margin-bottom: 0.3rem;
+.state-fresh {
+  color: #0b7038;
+}
+.state-watch {
+  color: #9a5c00;
+}
+.state-worn,
+.state-over {
+  color: #a3180f;
 }
 
-input,
-select,
-textarea {
-  font: inherit;
-  width: 100%;
-  padding: 0.55rem 0.7rem;
-  border: 1.5px solid var(--rule);
-  border-radius: 2px;
-  background: #fff;
-  color: var(--ink);
+/* ---------- Wear gauge ---------- */
+
+.rail {
+  position: relative;
+  height: 10px;
+  margin-top: 1rem;
+  border-radius: var(--r-pill);
+  background: #eaedf2;
+  overflow: hidden;
 }
 
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: var(--ink);
-  outline: none;
+.rail-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--r-pill);
+  /* One orchestrated moment: the gauge fills from empty on load. The custom
+     property carries the target so the keyframe can end at the real value. */
+  animation: fill-rail 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes fill-rail {
+  from {
+    width: 0;
+  }
+  to {
+    width: var(--pct);
+  }
 }
 
-.field-row {
+.bg-fresh {
+  background: linear-gradient(90deg, #17b95c, var(--fresh));
+}
+.bg-watch {
+  background: linear-gradient(90deg, #f5a623, var(--watch));
+}
+.bg-worn,
+.bg-over {
+  background: linear-gradient(90deg, #ef4444, var(--worn));
+}
+
+.rail-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  transform: translateX(-1px);
+}
+
+.rail-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+/* ---------- Reviews ---------- */
+
+.review-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0 1rem;
-}
-
-.form-panel {
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  padding: 1.5rem;
-  background: #fbfaf8;
-  max-width: 34rem;
-}
-
-.error {
-  color: var(--worn);
-  font-size: 0.9rem;
-  margin: 0.25rem 0 0.75rem;
-}
-
-/* ---------- lists on the detail page ---------- */
-
-.section {
-  margin-top: 3rem;
-}
-
-.section > h2 {
-  padding-bottom: 0.6rem;
-  border-bottom: 1.5px solid var(--ink);
-}
-
-.stack {
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+.review-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.review-shot {
+  aspect-ratio: 16 / 9;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  overflow: hidden;
+}
+.review-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* No image yet: a quiet placeholder rather than a broken frame. */
+.review-shot-none {
+  display: grid;
+  place-items: center;
+  color: var(--ink-faint);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--paper),
+    var(--paper) 8px,
+    #f1f3f7 8px,
+    #f1f3f7 16px
+  );
+}
+.review-shot-none svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.review-body {
+  padding: 1.1rem 1.2rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+.review-source {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--flame-deep);
+}
+.review-title {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.review-excerpt {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.review-more {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* ---------- Prices ---------- */
+
+.price-grid {
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.2rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+}
+/* The cheapest quote is the answer to the question, so it gets the accent. */
+.price-row.is-best {
+  border-color: var(--flame);
+  box-shadow: 0 0 0 3px var(--flame-wash);
+}
+
+.price-amount {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  min-width: 5.5rem;
+}
+.price-amount-none {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-faint);
+  letter-spacing: 0;
+}
+.price-retailer {
+  flex: 1;
+  font-weight: 600;
+}
+.price-best-flag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--flame-deep);
+  background: var(--flame-wash);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--r-pill);
+}
+
+/* ---------- Plain lists ---------- */
+
+.stack {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
 .stack > li {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 0.85rem 0;
-  border-bottom: 1px solid var(--rule);
-}
-
-.meta {
-  font-size: 0.875rem;
-  color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
-}
-
-.empty {
-  padding: 2.5rem 0;
-  color: var(--ink-soft);
-  max-width: var(--measure);
-}
-
-/* ---------- sign in ---------- */
-
-.gate {
-  min-height: 70vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 3rem 0;
-}
-
-.gate-actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-}
-
-.sample-rail {
-  margin: 3rem 0 0;
-  max-width: 30rem;
-}
-
-/* ---------- Sign-in gate ---------- */
-
-/* Stacked, equal-width provider buttons. Column rather than a row so the marks
-   line up down the left edge and no button reads as the default choice. */
-.provider-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1.75rem;
-  max-width: 24rem;
-}
-.provider-stack form {
-  display: block;
-}
-
-.provider-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  width: 100%;
-  font: inherit;
-  font-weight: 600;
-  font-size: 1rem;
-  padding: 0.9rem 1.15rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  background: transparent;
-  color: var(--ink);
-  cursor: pointer;
-  text-align: left;
-}
-.provider-btn:hover {
-  background: rgba(26, 35, 46, 0.06);
-}
-.provider-btn:focus-visible {
-  outline: 2px solid var(--link);
-  outline-offset: 2px;
-}
-
-/* Fixed box so a wordmark and a glyph occupy the same width and the labels
-   start on a common baseline. */
-.provider-mark {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 1.35rem;
-  height: 1.35rem;
-}
-.provider-mark svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* Apple asks for a solid black or solid white button, so it gets ink rather
-   than the outline treatment. */
-.provider-apple {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
-}
-.provider-apple:hover {
-  background: #101821;
-}
-
-.gate-note {
-  margin-top: 1.5rem;
-  max-width: 24rem;
-  font-size: 0.85rem;
-  color: var(--ink-soft);
+  padding: 0.8rem 1.1rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
 }
 
 .unit-picker {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 .unit-picker .meta {
   white-space: nowrap;
 }
-/* The unit already in force reads as a label, not as something to click. */
 .unit-picker .is-current {
   color: var(--ink);
-  text-decoration: none;
-  font-weight: 600;
+  font-weight: 700;
   cursor: default;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .rail-fill {
+    width: var(--pct);
   }
 }

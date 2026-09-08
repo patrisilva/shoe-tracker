@@ -94,11 +94,11 @@ export default async function Dashboard() {
                   <Link href={`/shoes/${shoe.id}`} className="shoe-title">
                     {shoe.brand} {shoe.model}
                     {shoe.nickname && (
-                      <span className="shoe-nickname"> — {shoe.nickname}</span>
+                      <span className="shoe-nickname"> {shoe.nickname}</span>
                     )}
                   </Link>
                   <span className={`odometer state-${m.state}`}>
-                    {formatDistance(m.distance)}
+                    <span className="num">{formatDistance(m.distance)}</span>
                     <small>{u}</small>
                   </span>
                 </div>
@@ -106,7 +106,7 @@ export default async function Dashboard() {
                 <DistanceRail distance={m} unit={unit} />
 
                 <div className="rack-foot">
-                  <span className={`state-${m.state}`}>
+                  <span className={`chip state-${m.state}`}>
                     {wearMessage(m, unit)}
                   </span>
                   <span>
