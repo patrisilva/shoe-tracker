@@ -6,7 +6,7 @@ import { auth, signIn } from "@/auth";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { checkPassword, normaliseEmail } from "@/lib/password-rules";
-import { ACCESS_DENIED_MESSAGE, isAllowed } from "@/lib/access";
+import { issueVerification } from "@/lib/verification";
 import { buildReviewLinks, buildRetailLinks } from "@/lib/links";
 import { refreshShoePrices } from "@/lib/refresh";
 import { refreshShoeReviews } from "@/lib/reviews";
@@ -19,13 +19,20 @@ import {
   type Unit,
 } from "@/lib/units";
 
-export type ActionResult = { error?: string };
+export type ActionResult = {
+  error?: string;
+  /** Set once a confirmation link has gone out, so the form can say so. */
+  sentTo?: string;
+  /** True when no mail provider is configured and the link was only logged. */
+  notDelivered?: boolean;
+};
 
 /**
- * Creates an email-and-password account, then signs it in.
+ * Creates an email-and-password account and emails a confirmation link.
  *
- * Credentials sign-in bypasses the Prisma adapter's user creation, so the row
- * is written here and `authorize` only ever verifies an existing one.
+ * The account is deliberately left unusable until the link is opened: it is
+ * created with `emailVerified` null, and `authorize` refuses to sign in a
+ * password account in that state. No session is issued here.
  */
 export async function signUpWithPassword(
   _prev: ActionResult,
@@ -37,35 +44,68 @@ export async function signUpWithPassword(
 
   if (!email) return { error: "Enter a valid email address." };
 
-  // Checked here as well as in the signIn callback so the form can say why
-  // inline, rather than bouncing through an error page after the account has
-  // already been created.
-  if (!isAllowed(email)) return { error: ACCESS_DENIED_MESSAGE };
-
   const badPassword = checkPassword(password);
   if (badPassword) return { error: badPassword };
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, passwordHash: true, emailVerified: true },
+  });
+
   if (existing) {
-    // Says the same thing whether the account is password or Google backed,
-    // so this is not a way to enumerate which emails are registered.
-    return {
-      error: "That email already has an account. Sign in instead.",
-    };
+    // An unconfirmed account can be nudged again — that is the same person
+    // finishing the job, not a new registration.
+    if (existing.passwordHash && existing.emailVerified === null) {
+      const issued = await issueVerification(existing.id, email);
+      if (!issued.ok) {
+        return {
+          error: `A link was just sent. Try again in ${issued.retryInSeconds}s.`,
+        };
+      }
+      return { sentTo: email, notDelivered: !issued.delivered };
+    }
+
+    // Otherwise the same line whether it is a password or Google account, so
+    // this is not a way to discover which addresses are registered.
+    return { error: "That email already has an account. Sign in instead." };
   }
 
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: { email, name, passwordHash: await hashPassword(password) },
+    select: { id: true },
   });
 
-  // Throws a redirect on success, so nothing after this runs.
-  await signIn("credentials", {
-    email,
-    password,
-    redirectTo: "/dashboard",
+  const issued = await issueVerification(user.id, email);
+  return {
+    sentTo: email,
+    notDelivered: issued.ok ? !issued.delivered : false,
+  };
+}
+
+/** Sends another confirmation link for an address that has not confirmed. */
+export async function resendVerification(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const email = normaliseEmail(String(formData.get("email") ?? ""));
+  if (!email) return { error: "Enter a valid email address." };
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, passwordHash: true, emailVerified: true },
   });
 
-  return {};
+  // Always reports success. Saying "no such account" here would turn the
+  // resend form into an address checker.
+  if (!user || !user.passwordHash || user.emailVerified !== null) {
+    return { sentTo: email };
+  }
+
+  const issued = await issueVerification(user.id, email);
+  if (!issued.ok) {
+    return { error: `A link was just sent. Try again in ${issued.retryInSeconds}s.` };
+  }
+  return { sentTo: email, notDelivered: !issued.delivered };
 }
 
 /** Signs in an existing email-and-password account. */
@@ -95,6 +135,15 @@ export async function signInWithPassword(
       String((err as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT")
     ) {
       throw err;
+    }
+    // Auth.js puts our subclass's `code` on the error, which is the only way
+    // to tell "not confirmed yet" apart from "wrong password".
+    const code = (err as { code?: unknown })?.code;
+    if (code === "email_not_verified") {
+      return {
+        error:
+          "Confirm your email first. Check your inbox, or send a new link below.",
+      };
     }
     return { error: "That email and password do not match an account." };
   }

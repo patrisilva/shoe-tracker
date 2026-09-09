@@ -4,7 +4,6 @@ import { DistanceRail } from "@/components/DistanceRail";
 import { SignInButton } from "@/components/SignInButton";
 import { EmailAuthForm } from "@/components/EmailAuthForm";
 import { computeDistance, formatDistance, wearMessage } from "@/lib/shoe";
-import { ACCESS_DENIED_MESSAGE, allowlistEnabled } from "@/lib/access";
 
 function BoltIcon() {
   return (
@@ -47,12 +46,10 @@ export default async function Home({
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
-  // Auth.js sends a rejected sign-in back here with ?error=AccessDenied. Any
-  // other error code gets a generic line rather than being echoed, since the
-  // value arrives in the URL and is not ours to trust.
+  // Auth.js bounces a failed sign-in back here with ?error=... The code is
+  // never echoed: it arrives in the URL and is not ours to trust.
   const { error } = await searchParams;
-  const turnedAway = error === "AccessDenied";
-  const otherError = Boolean(error) && !turnedAway;
+  const signInFailed = Boolean(error);
 
   // The hero is the gauge doing its actual job, not a decorative stat: a pair
   // 40 miles from the line, in the amber band, reading exactly as it would on
@@ -85,8 +82,7 @@ export default async function Home({
 
           <div className="hero-cta">
             <div className="auth-card">
-              {turnedAway && <p className="error">{ACCESS_DENIED_MESSAGE}</p>}
-              {otherError && (
+              {signInFailed && (
                 <p className="error">
                   That sign-in did not go through. Try again.
                 </p>
@@ -109,12 +105,11 @@ export default async function Home({
               <EmailAuthForm />
             </div>
 
-            {/* Said up front when the allowlist is on, so someone who cannot
-                get in learns it before filling the form in. */}
+            {/* Set the expectation before the form is filled in, so the
+                "check your inbox" screen is not a surprise. */}
             <p className="gate-note">
-              {allowlistEnabled()
-                ? "Invite only. Signing in creates your rack on first use."
-                : "Signing in creates your rack on first use — there is no separate sign-up."}
+              New email accounts confirm their address first. Google sign-in
+              needs no confirmation — Google has already done it.
             </p>
           </div>
         </section>

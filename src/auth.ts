@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
@@ -7,6 +7,15 @@ import { verifyPassword } from "@/lib/password";
 import { normaliseEmail } from "@/lib/password-rules";
 
 export { enabledProviders } from "@/auth.config";
+
+/**
+ * Thrown by `authorize` when the password is right but the address has not
+ * been confirmed. Auth.js surfaces `code` on the sign-in error, which is how
+ * the form knows to offer a resend rather than saying "wrong password".
+ */
+export class EmailNotVerifiedError extends CredentialsSignin {
+  code = "email_not_verified";
+}
 
 /**
  * Email and password sign-in.
@@ -38,6 +47,13 @@ const credentials = Credentials({
 
     const ok = await verifyPassword(password, hash);
     if (!ok || !user?.passwordHash) return null;
+
+    // Correct password, but the address has not been confirmed. Refused here
+    // rather than in the signIn callback so the reason can be distinguished
+    // from a wrong password — the form offers to resend the link.
+    if (user.emailVerified === null) {
+      throw new EmailNotVerifiedError();
+    }
 
     return {
       id: user.id,

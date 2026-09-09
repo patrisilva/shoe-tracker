@@ -150,25 +150,38 @@ curl -fsS -X POST "$AUTH_URL/api/cron/refresh-prices" -H "x-cron-secret: $CRON_S
 The HTTP route is the better default. It returns
 `{ ok: true, shoes, quotes, failed }` so the cron log tells you what happened.
 
-## Who can sign in
+## Email confirmation
 
-Set `ALLOWED_EMAILS` to a comma-separated list and only those addresses can
-sign up or sign in — by **any** route, including Google, because the check
-lives in the Auth.js `signIn` callback rather than in the sign-up form alone.
+Anyone can register, but an email account is unusable until its address is
+confirmed. Sign-up creates the row with `emailVerified` null and mails a link;
+`authorize` refuses to sign in a password account in that state, raising
+`email_not_verified` so the form can offer to resend rather than implying the
+password was wrong.
+
+Google accounts skip this — the check only applies to accounts that have a
+`passwordHash`, and Google has already verified the address.
+
+Tokens are 32 random bytes, single use, valid 24 hours. Only a SHA-256 of the
+token is stored, so the raw value exists solely in the emailed URL and a leaked
+database cannot confirm anyone's account. Resends are rate limited to one per
+minute per account, which stops the form being used to mailbomb an address.
+
+Set **one** mail provider:
 
 ```
-ALLOWED_EMAILS="you@example.com,friend@example.com"
+SMTP_URL="smtp://you%40gmail.com:app-password@smtp.gmail.com:587"
+RESEND_API_KEY="re_..."
 ```
 
-Leave it unset and anyone can register. That is deliberate: a check keyed on
-an environment variable should fail open, or a typo in the list locks the owner
-out with no route back in through the UI. An empty or comma-only value counts
-as unset for the same reason.
+`SMTP_URL` delivers to anyone with no domain to own. `RESEND_API_KEY` needs no
+install, but on Resend's shared `onboarding@resend.dev` sender it only reaches
+your own address — mailing strangers needs a verified domain first. With
+neither set the link is logged rather than sent, so local development works
+without credentials and the missing configuration is visible instead of silent.
 
-Note this is an allowlist, not email verification. It answers "who is allowed
-in", which is the usual worry; it does not prove an address is real. Whatever
-address your Google account uses has to be in the list, or you will turn
-yourself away.
+Password accounts that existed before this release are grandfathered in by
+`20260909122500_grandfather_existing_passwords`, so nobody is locked out of an
+app they could already use.
 
 ## Notes
 

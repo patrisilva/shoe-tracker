@@ -1,7 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import Apple from "next-auth/providers/apple";
-import { isAllowed } from "@/lib/access";
 
 /**
  * Edge-safe half of the auth setup. It holds providers and callbacks but no
@@ -42,16 +41,6 @@ export const authConfig = {
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
   pages: { signIn: "/", error: "/" },
   callbacks: {
-    /**
-     * The single gate every route passes through.
-     *
-     * Runs for Google and for email/password alike, so an address that is not
-     * on the allowlist cannot get in by switching provider. Returning false
-     * sends them to the sign-in page with `?error=AccessDenied`.
-     */
-    signIn({ user, profile }) {
-      return isAllowed(user?.email ?? profile?.email ?? null);
-    },
     jwt({ token, user }) {
       if (user) token.uid = user.id;
       return token;
