@@ -25,12 +25,31 @@ export type Mail = {
 
 export type MailResult = { delivered: boolean; via: string };
 
+/**
+ * Who the mail comes from.
+ *
+ * `MAIL_FROM` wins. Failing that the address is derived from the SMTP
+ * username, because most providers — Gmail among them — reject or silently
+ * rewrite a From that is not the authenticated mailbox. Defaulting to Resend's
+ * sender while sending over Gmail was a quiet way to lose every email.
+ */
 function sender(): string {
-  return (
-    process.env.MAIL_FROM?.trim() ||
-    // Resend's shared sender, which needs no domain of your own.
-    "Shoe Rack <onboarding@resend.dev>"
-  );
+  const explicit = process.env.MAIL_FROM?.trim();
+  if (explicit) return explicit;
+
+  const smtpUrl = process.env.SMTP_URL?.trim();
+  if (smtpUrl) {
+    try {
+      const user = decodeURIComponent(new URL(smtpUrl).username);
+      if (user.includes("@")) return `Shoe Rack <${user}>`;
+    } catch {
+      // Unparseable SMTP_URL: fall through and let the provider complain
+      // about the From rather than guessing at it.
+    }
+  }
+
+  // Resend's shared sender, which needs no domain of your own.
+  return "Shoe Rack <onboarding@resend.dev>";
 }
 
 async function sendViaResend(mail: Mail, key: string): Promise<MailResult> {
