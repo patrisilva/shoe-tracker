@@ -4,6 +4,7 @@ import { DistanceRail } from "@/components/DistanceRail";
 import { SignInButton } from "@/components/SignInButton";
 import { EmailAuthForm } from "@/components/EmailAuthForm";
 import { computeDistance, formatDistance, wearMessage } from "@/lib/shoe";
+import { verificationRequired } from "@/lib/verification";
 
 function BoltIcon() {
   return (
@@ -50,6 +51,7 @@ export default async function Home({
   // never echoed: it arrives in the URL and is not ours to trust.
   const { error } = await searchParams;
   const signInFailed = Boolean(error);
+  const mustConfirm = verificationRequired();
 
   // The hero is the gauge doing its actual job, not a decorative stat: a pair
   // 40 miles from the line, in the amber band, reading exactly as it would on
@@ -102,14 +104,15 @@ export default async function Home({
                 </>
               )}
 
-              <EmailAuthForm />
+              <EmailAuthForm requireVerification={mustConfirm} />
             </div>
 
             {/* Set the expectation before the form is filled in, so the
                 "check your inbox" screen is not a surprise. */}
             <p className="gate-note">
-              New email accounts confirm their address first. Google sign-in
-              needs no confirmation — Google has already done it.
+              {mustConfirm
+                ? "New email accounts confirm their address first. Google sign-in needs no confirmation — Google has already done it."
+                : "Signing in creates your rack on first use — there is no separate sign-up."}
             </p>
           </div>
         </section>

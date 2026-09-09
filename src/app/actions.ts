@@ -6,7 +6,7 @@ import { auth, signIn } from "@/auth";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { checkPassword, normaliseEmail } from "@/lib/password-rules";
-import { issueVerification } from "@/lib/verification";
+import { issueVerification, verificationRequired } from "@/lib/verification";
 import { buildReviewLinks, buildRetailLinks } from "@/lib/links";
 import { refreshShoePrices } from "@/lib/refresh";
 import { refreshShoeReviews } from "@/lib/reviews";
@@ -28,11 +28,12 @@ export type ActionResult = {
 };
 
 /**
- * Creates an email-and-password account and emails a confirmation link.
+ * Creates an email-and-password account.
  *
- * The account is deliberately left unusable until the link is opened: it is
- * created with `emailVerified` null, and `authorize` refuses to sign in a
- * password account in that state. No session is issued here.
+ * With REQUIRE_EMAIL_VERIFICATION off — the default — the account is usable
+ * straight away and this signs in. With it on, the account is created with
+ * `emailVerified` null, a confirmation link is emailed, and no session is
+ * issued until that link is opened.
  */
 export async function signUpWithPassword(
   _prev: ActionResult,
@@ -52,10 +53,12 @@ export async function signUpWithPassword(
     select: { id: true, passwordHash: true, emailVerified: true },
   });
 
+  const mustConfirm = verificationRequired();
+
   if (existing) {
     // An unconfirmed account can be nudged again — that is the same person
     // finishing the job, not a new registration.
-    if (existing.passwordHash && existing.emailVerified === null) {
+    if (mustConfirm && existing.passwordHash && existing.emailVerified === null) {
       const issued = await issueVerification(existing.id, email);
       if (!issued.ok) {
         return {
@@ -71,15 +74,28 @@ export async function signUpWithPassword(
   }
 
   const user = await prisma.user.create({
-    data: { email, name, passwordHash: await hashPassword(password) },
+    data: {
+      email,
+      name,
+      passwordHash: await hashPassword(password),
+      // With confirmation off the address is taken at face value, so the
+      // account is usable immediately and `authorize` has nothing to refuse.
+      emailVerified: mustConfirm ? null : new Date(),
+    },
     select: { id: true },
   });
 
-  const issued = await issueVerification(user.id, email);
-  return {
-    sentTo: email,
-    notDelivered: issued.ok ? !issued.delivered : false,
-  };
+  if (mustConfirm) {
+    const issued = await issueVerification(user.id, email);
+    return {
+      sentTo: email,
+      notDelivered: issued.ok ? !issued.delivered : false,
+    };
+  }
+
+  // Throws a redirect on success, so nothing after this runs.
+  await signIn("credentials", { email, password, redirectTo: "/dashboard" });
+  return {};
 }
 
 /** Sends another confirmation link for an address that has not confirmed. */
@@ -87,6 +103,8 @@ export async function resendVerification(
   _prev: ActionResult,
   formData: FormData
 ): Promise<ActionResult> {
+  if (!verificationRequired()) return {};
+
   const email = normaliseEmail(String(formData.get("email") ?? ""));
   if (!email) return { error: "Enter a valid email address." };
 

@@ -152,8 +152,14 @@ The HTTP route is the better default. It returns
 
 ## Email confirmation
 
-Anyone can register, but an email account is unusable until its address is
-confirmed. Sign-up creates the row with `emailVerified` null and mails a link;
+**Off by default** — anyone with a valid address can register and is signed in
+straight away. Turn it on with `REQUIRE_EMAIL_VERIFICATION=true`, which is a
+deliberate act because it depends on outbound mail working from wherever this
+is deployed. The flag is not inferred from "is a provider configured": a
+provider that is set but broken would then silently refuse every sign-in.
+
+With it on, an email account is unusable until its address is confirmed.
+Sign-up creates the row with `emailVerified` null and mails a link;
 `authorize` refuses to sign in a password account in that state, raising
 `email_not_verified` so the form can offer to resend rather than implying the
 password was wrong.
@@ -194,9 +200,10 @@ providers reject a From that is not the verified sender. With no provider at
 all the link is logged rather than sent, so local development needs no
 credentials and the gap is visible instead of silent.
 
-Password accounts that existed before this release are grandfathered in by
-`20260909122500_grandfather_existing_passwords`, so nobody is locked out of an
-app they could already use.
+Password accounts that existed before confirmation was introduced are
+grandfathered in by `20260909122500_grandfather_existing_passwords`. Turning
+the flag off also releases anyone left unconfirmed, so switching it on and off
+never strands an account.
 
 ## Notes
 

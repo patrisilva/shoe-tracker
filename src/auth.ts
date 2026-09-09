@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { authConfig } from "@/auth.config";
 import { verifyPassword } from "@/lib/password";
 import { normaliseEmail } from "@/lib/password-rules";
+import { verificationRequired } from "@/lib/verification";
 
 export { enabledProviders } from "@/auth.config";
 
@@ -50,8 +51,10 @@ const credentials = Credentials({
 
     // Correct password, but the address has not been confirmed. Refused here
     // rather than in the signIn callback so the reason can be distinguished
-    // from a wrong password — the form offers to resend the link.
-    if (user.emailVerified === null) {
+    // from a wrong password — the form offers to resend the link. Only applies
+    // when confirmation is switched on; otherwise the column is ignored and
+    // accounts created while it was on still work.
+    if (verificationRequired() && user.emailVerified === null) {
       throw new EmailNotVerifiedError();
     }
 

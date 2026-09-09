@@ -15,6 +15,22 @@ const TTL_HOURS = 24;
 /** How long before another link can be requested for the same account. */
 export const RESEND_COOLDOWN_SECONDS = 60;
 
+/**
+ * Whether a new email account has to confirm before it can be used.
+ *
+ * Off by default, so registration works out of the box. Turning it on is a
+ * deliberate act because it depends on outbound mail actually working from
+ * wherever this is deployed — and on Railway that rules out every SMTP
+ * provider, since outbound SMTP is blocked on all ports.
+ *
+ * Deliberately not inferred from "is a mail provider configured": a provider
+ * that is set but broken would then silently start refusing every sign-in,
+ * which is the failure this flag exists to avoid.
+ */
+export function verificationRequired(): boolean {
+  return process.env.REQUIRE_EMAIL_VERIFICATION?.trim().toLowerCase() === "true";
+}
+
 function hash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }

@@ -62,7 +62,11 @@ function CheckYourInbox({
  * that specifically, with a resend button, rather than looking like a wrong
  * password.
  */
-export function EmailAuthForm() {
+export function EmailAuthForm({
+  requireVerification = false,
+}: {
+  requireVerification?: boolean;
+}) {
   const [mode, setMode] = useState<"signup" | "signin">("signup");
 
   const [signUpState, signUpAction] = useActionState<ActionResult, FormData>(
@@ -143,7 +147,13 @@ export function EmailAuthForm() {
 
         <Submit
           label={isSignUp ? "Create account" : "Sign in"}
-          pendingLabel={isSignUp ? "Sending link…" : "Signing in…"}
+          pendingLabel={
+            isSignUp
+              ? requireVerification
+                ? "Sending link…"
+                : "Creating account…"
+              : "Signing in…"
+          }
         />
       </form>
 
