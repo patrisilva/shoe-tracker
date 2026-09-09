@@ -78,20 +78,40 @@ async function sendViaResend(mail: Mail, key: string): Promise<MailResult> {
   return { delivered: true, via: "resend" };
 }
 
+/**
+ * Every stage is bounded.
+ *
+ * Nodemailer's defaults are minutes long, and several hosts silently drop
+ * outbound SMTP rather than refusing it — the socket just hangs. Unbounded,
+ * that left the sign-up action awaiting forever and the button stuck on
+ * "Sending link…" with nothing in the log. Better to fail in seconds and say
+ * so.
+ */
+const SMTP_TIMEOUT_MS = 10_000;
+
 async function sendViaSmtp(mail: Mail, url: string): Promise<MailResult> {
   // Imported lazily so the SMTP client is not pulled into a build that only
   // ever uses Resend.
   const nodemailer = await import("nodemailer");
-  const transport = nodemailer.createTransport(url);
-
-  await transport.sendMail({
-    from: sender(),
-    to: mail.to,
-    subject: mail.subject,
-    text: mail.text,
-    html: mail.html,
+  const transport = nodemailer.createTransport(url, {
+    connectionTimeout: SMTP_TIMEOUT_MS,
+    greetingTimeout: SMTP_TIMEOUT_MS,
+    socketTimeout: SMTP_TIMEOUT_MS,
   });
-  return { delivered: true, via: "smtp" };
+
+  try {
+    await transport.sendMail({
+      from: sender(),
+      to: mail.to,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    });
+    return { delivered: true, via: "smtp" };
+  } finally {
+    // Otherwise the pool keeps the process's event loop busy.
+    transport.close();
+  }
 }
 
 export function mailerConfigured(): boolean {
@@ -102,8 +122,31 @@ export async function sendMail(mail: Mail): Promise<MailResult> {
   const resendKey = process.env.RESEND_API_KEY?.trim();
   const smtpUrl = process.env.SMTP_URL?.trim();
 
-  if (smtpUrl) return sendViaSmtp(mail, smtpUrl);
-  if (resendKey) return sendViaResend(mail, resendKey);
+  if (smtpUrl) {
+    try {
+      return await sendViaSmtp(mail, smtpUrl);
+    } catch (err) {
+      // Logged with the provider's own wording, because that is what names
+      // the cause: EAUTH for bad credentials, ETIMEDOUT for a host that drops
+      // outbound SMTP. The caller reports "not delivered" either way rather
+      // than pretending the mail went out.
+      const e = err as { code?: string; responseCode?: number; message?: string };
+      console.error(
+        `[mail] SMTP send failed for ${mail.to}: code=${e.code ?? "?"} ` +
+          `responseCode=${e.responseCode ?? "?"} ${(e.message ?? "").slice(0, 200)}`
+      );
+      return { delivered: false, via: "smtp-failed" };
+    }
+  }
+
+  if (resendKey) {
+    try {
+      return await sendViaResend(mail, resendKey);
+    } catch (err) {
+      console.error(`[mail] Resend send failed for ${mail.to}: ${String(err).slice(0, 250)}`);
+      return { delivered: false, via: "resend-failed" };
+    }
+  }
 
   console.warn(
     `[mail] No RESEND_API_KEY or SMTP_URL set. Not sending. To: ${mail.to}\n` +

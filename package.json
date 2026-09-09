@@ -11,6 +11,7 @@
     "start": "prisma migrate deploy && next start -p ${PORT:-3000}",
     "postinstall": "prisma generate",
     "cron:prices": "tsx scripts/refresh-prices.ts",
+    "mail:check": "tsx scripts/mail-check.ts",
     "lint": "eslint ."
   },
   "dependencies": {
