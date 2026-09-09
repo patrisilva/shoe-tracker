@@ -179,9 +179,46 @@ a:hover {
   border-radius: var(--r-lg);
 }
 
+/* Destructive. Solid red rather than an outline, because it should not look
+   interchangeable with "Retire this pair" sitting next to it. */
+.btn-danger {
+  background: var(--worn);
+  border-color: var(--worn);
+  color: #fff;
+}
+.btn-danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+.btn-danger:focus-visible {
+  outline-color: var(--worn);
+}
+
 .btn[disabled] {
   opacity: 0.55;
   cursor: progress;
+}
+
+/* The confirmation step, tinted so it reads as a different mode from the rest
+   of Manage rather than as one more row of controls. */
+.danger-zone {
+  width: 100%;
+  padding: 1.1rem 1.25rem;
+  background: var(--worn-wash);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: var(--r-lg);
+}
+.danger-zone-text {
+  margin: 0 0 0.9rem;
+  max-width: 56ch;
+  font-size: 0.92rem;
+  color: #7f1d1d;
+}
+.danger-zone-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 /* ---------- Landing ---------- */

@@ -7,7 +7,8 @@ import { LogRunForm } from "@/components/LogRunForm";
 import { ReviewsSection } from "@/components/ReviewsSection";
 import { RunRow } from "@/components/RunRow";
 import { HeroPhoto } from "@/components/HeroPhoto";
-import { deleteShoe, toggleRetired } from "@/app/actions";
+import { DeleteShoeButton } from "@/components/DeleteShoeButton";
+import { toggleRetired } from "@/app/actions";
 import { MAX_REVIEW_LINKS, sourceName } from "@/lib/links";
 import { formatPrice } from "@/lib/price-provider";
 import { cheapest } from "@/lib/refresh";
@@ -48,6 +49,8 @@ export default async function ShoePage({
       links: { orderBy: { position: "asc" } },
       // Just the timestamp: enough to know a photo exists without loading it.
       image: { select: { updatedAt: true } },
+      // runs above is capped at 50, so the delete warning needs a real count.
+      _count: { select: { runs: true } },
     },
   });
   if (!shoe) notFound();
@@ -125,7 +128,7 @@ export default async function ShoePage({
 
         <div className="rack-head" style={{ marginTop: "1.25rem" }}>
           <span className="meta">
-            {shoe.runs.length} {shoe.runs.length === 1 ? "run" : "runs"} logged
+            {shoe._count.runs} {shoe._count.runs === 1 ? "run" : "runs"} logged
           </span>
           <span className={`odometer state-${m.state}`}>
             <span className="num">{formatDistance(m.distance)}</span>
@@ -312,12 +315,7 @@ export default async function ShoePage({
               {shoe.retiredAt ? "Put back in service" : "Retire this pair"}
             </button>
           </form>
-          <form action={deleteShoe}>
-            <input type="hidden" name="shoeId" value={shoe.id} />
-            <button className="btn" type="submit">
-              Delete shoe and its runs
-            </button>
-          </form>
+          <DeleteShoeButton shoeId={shoe.id} runCount={shoe._count.runs} />
         </div>
       </section>
     </main>
