@@ -6,6 +6,7 @@ import { auth, signIn } from "@/auth";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { checkPassword, normaliseEmail } from "@/lib/password-rules";
+import { ACCESS_DENIED_MESSAGE, isAllowed } from "@/lib/access";
 import { buildReviewLinks, buildRetailLinks } from "@/lib/links";
 import { refreshShoePrices } from "@/lib/refresh";
 import { refreshShoeReviews } from "@/lib/reviews";
@@ -35,6 +36,11 @@ export async function signUpWithPassword(
   const name = String(formData.get("name") ?? "").trim() || null;
 
   if (!email) return { error: "Enter a valid email address." };
+
+  // Checked here as well as in the signIn callback so the form can say why
+  // inline, rather than bouncing through an error page after the account has
+  // already been created.
+  if (!isAllowed(email)) return { error: ACCESS_DENIED_MESSAGE };
 
   const badPassword = checkPassword(password);
   if (badPassword) return { error: badPassword };
