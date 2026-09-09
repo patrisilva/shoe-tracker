@@ -1,30 +1,43 @@
 /**
- * Standalone daily price refresh.
+ * The daily job: refresh prices and hunt for review articles.
  *
- * Use this when you would rather run a Railway cron service against the
- * database directly than call the HTTP route:
+ * Runs as a Railway cron service against the database directly. Preferred over
+ * curling the HTTP route because it needs no shared secret, no public URL and
+ * no shell quoting — the schedule just runs `npm run cron:prices`.
  *
  *   npm run cron:prices
  */
 import { refreshAllPrices } from "../src/lib/refresh";
+import { refreshAllReviews } from "../src/lib/reviews";
 import { prisma } from "../src/lib/db";
 
 async function main() {
   const started = Date.now();
-  const result = await refreshAllPrices();
-  const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
+  // Independent of each other, and both are mostly waiting on the network.
+  const [prices, reviews] = await Promise.all([
+    refreshAllPrices(),
+    refreshAllReviews(),
+  ]);
+
+  const seconds = ((Date.now() - started) / 1000).toFixed(1);
   console.log(
-    `Refreshed ${result.quotes} quotes across ${result.shoes} shoes in ${seconds}s.`
+    `Refreshed ${prices.quotes} quotes and ${reviews.articles} review articles ` +
+      `across ${prices.shoes} shoes in ${seconds}s.`
   );
-  if (result.failed.length > 0) {
-    console.warn(`Failed for ${result.failed.length} shoes: ${result.failed.join(", ")}`);
+
+  if (prices.failed.length > 0) {
+    console.warn(
+      `Prices failed for ${prices.failed.length} shoes: ${prices.failed.join(", ")}`
+    );
   }
 }
 
 main()
   .catch((err) => {
-    console.error("Price refresh failed:", err);
+    // Non-zero exit so a failed run shows as failed in Railway rather than
+    // looking like a successful no-op.
+    console.error("Daily refresh failed:", err);
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());
