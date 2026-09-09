@@ -60,7 +60,10 @@ export default defineRailway(() => {
       // it a boot failure is reported as a healthy deploy — which is exactly
       // how the P1012 crash loop first went unnoticed.
       healthcheckPath: "/api/health",
-      restartPolicyType: "ON_FAILURE",
+      // restartPolicyType is left out on purpose: ON_FAILURE is the platform
+      // default, so Railway stores it as null and declaring it leaves `config
+      // plan` permanently reporting one pending change. Drift detection is
+      // only useful while a clean plan means clean.
       restartPolicyMaxRetries: 5,
     },
     env: {
