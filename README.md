@@ -166,18 +166,33 @@ token is stored, so the raw value exists solely in the emailed URL and a leaked
 database cannot confirm anyone's account. Resends are rate limited to one per
 minute per account, which stops the form being used to mailbomb an address.
 
-Set **one** mail provider:
+### Mail providers
+
+**Railway blocks outbound SMTP.** From inside a container, `smtp.gmail.com` on
+587, 465 and 2525 all time out, while HTTPS is fine. Any SMTP provider is
+therefore a dead end there no matter how valid the credentials — a Gmail app
+password authenticates happily from a laptop and hangs from the deployment.
+`npm run mail:check` probes exactly this; run it *in* the deployment, since
+`railway run` executes locally and will not reproduce the block.
+
+Set one of, tried in this order:
 
 ```
-SMTP_URL="smtp://you%40gmail.com:app-password@smtp.gmail.com:587"
-RESEND_API_KEY="re_..."
+BREVO_API_KEY="xkeysib-..."   # HTTPS; verify a single sender, no domain needed
+RESEND_API_KEY="re_..."       # HTTPS; needs a verified domain to mail strangers
+SMTP_URL="smtp://..."         # only where outbound SMTP is permitted
 ```
 
-`SMTP_URL` delivers to anyone with no domain to own. `RESEND_API_KEY` needs no
-install, but on Resend's shared `onboarding@resend.dev` sender it only reaches
-your own address — mailing strangers needs a verified domain first. With
-neither set the link is logged rather than sent, so local development works
-without credentials and the missing configuration is visible instead of silent.
+Brevo is the one that fits open registration on Railway: it goes over HTTPS and
+a single sender address — a plain Gmail — can be verified without owning a
+domain. Resend is pleasanter but its shared sender only reaches the account
+owner. `SMTP_URL` stays for hosts that allow it and for local development
+against a sink.
+
+The From is `MAIL_FROM`, or the SMTP username if that is set, since most
+providers reject a From that is not the verified sender. With no provider at
+all the link is logged rather than sent, so local development needs no
+credentials and the gap is visible instead of silent.
 
 Password accounts that existed before this release are grandfathered in by
 `20260909122500_grandfather_existing_passwords`, so nobody is locked out of an

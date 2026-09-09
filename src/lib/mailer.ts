@@ -1,19 +1,24 @@
 /**
  * Sending mail, via whichever provider is configured.
  *
- * Two are supported because they fail in opposite ways:
+ * Three are supported, and the choice is forced by where this runs: Railway
+ * drops outbound SMTP on every port — 587, 465 and 2525 all time out from
+ * inside a container, while HTTPS is fine — so anything SMTP-based is a dead
+ * end there however valid the credentials are.
  *
- * - `RESEND_API_KEY` — an HTTP call, nothing to install. But Resend will only
- *   deliver to arbitrary recipients once you have verified a sending domain;
- *   on its shared `onboarding@resend.dev` sender it delivers only to the
- *   account owner's own address. Fine for a private rack, not for open
- *   registration.
- * - `SMTP_URL` — e.g. a Gmail app password. Delivers to anyone straight away
- *   with no domain to own, which is what open registration actually needs.
+ * - `BREVO_API_KEY` — HTTPS, and a single sender address can be verified
+ *   without owning a domain, so a plain Gmail address works as the From. The
+ *   only one of the three that both survives the SMTP block and can mail
+ *   strangers with no domain.
+ * - `RESEND_API_KEY` — also HTTPS, nicer to work with, but mailing arbitrary
+ *   recipients needs a verified *domain*; its shared sender reaches only the
+ *   account owner.
+ * - `SMTP_URL` — kept for hosts that permit outbound SMTP, and for local
+ *   development against a sink. Will not work on Railway.
  *
- * With neither set, mail is written to the server log instead of being sent.
- * That keeps local development working without credentials, and makes the
- * missing configuration obvious rather than silent.
+ * Checked in that order. With none set, mail is written to the server log,
+ * which keeps local development credential-free and makes the gap visible
+ * rather than silent.
  */
 
 export type Mail = {
@@ -37,6 +42,9 @@ function sender(): string {
   const explicit = process.env.MAIL_FROM?.trim();
   if (explicit) return explicit;
 
+  // An SMTP username is a real mailbox, so it doubles as a sensible From for
+  // the HTTPS providers too — which matters because Brevo verifies exactly
+  // that sort of single address.
   const smtpUrl = process.env.SMTP_URL?.trim();
   if (smtpUrl) {
     try {
@@ -50,6 +58,42 @@ function sender(): string {
 
   // Resend's shared sender, which needs no domain of your own.
   return "Shoe Rack <onboarding@resend.dev>";
+}
+
+/** Splits `Name <addr@host>` into the parts Brevo's JSON API expects. */
+function splitSender(raw: string): { email: string; name?: string } {
+  const match = raw.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (match) return { email: match[2].trim(), name: match[1] || undefined };
+  return { email: raw.trim() };
+}
+
+async function sendViaBrevo(mail: Mail, key: string): Promise<MailResult> {
+  const from = splitSender(sender());
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": key,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: from,
+      to: [{ email: mail.to }],
+      subject: mail.subject,
+      textContent: mail.text,
+      htmlContent: mail.html,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!res.ok) {
+    // Brevo names the cause in the body — an unverified sender is the usual
+    // one, and it is worth seeing verbatim.
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Brevo ${res.status}: ${detail.slice(0, 300)}`);
+  }
+  return { delivered: true, via: "brevo" };
 }
 
 async function sendViaResend(mail: Mail, key: string): Promise<MailResult> {
@@ -115,12 +159,37 @@ async function sendViaSmtp(mail: Mail, url: string): Promise<MailResult> {
 }
 
 export function mailerConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY || process.env.SMTP_URL);
+  return Boolean(
+    process.env.BREVO_API_KEY ||
+      process.env.RESEND_API_KEY ||
+      process.env.SMTP_URL
+  );
 }
 
 export async function sendMail(mail: Mail): Promise<MailResult> {
+  const brevoKey = process.env.BREVO_API_KEY?.trim();
   const resendKey = process.env.RESEND_API_KEY?.trim();
   const smtpUrl = process.env.SMTP_URL?.trim();
+
+  // HTTPS providers first: on a host that blocks outbound SMTP, preferring
+  // SMTP_URL because it happens to be set would guarantee failure.
+  if (brevoKey) {
+    try {
+      return await sendViaBrevo(mail, brevoKey);
+    } catch (err) {
+      console.error(`[mail] Brevo send failed for ${mail.to}: ${String(err).slice(0, 250)}`);
+      return { delivered: false, via: "brevo-failed" };
+    }
+  }
+
+  if (resendKey) {
+    try {
+      return await sendViaResend(mail, resendKey);
+    } catch (err) {
+      console.error(`[mail] Resend send failed for ${mail.to}: ${String(err).slice(0, 250)}`);
+      return { delivered: false, via: "resend-failed" };
+    }
+  }
 
   if (smtpUrl) {
     try {
@@ -139,17 +208,9 @@ export async function sendMail(mail: Mail): Promise<MailResult> {
     }
   }
 
-  if (resendKey) {
-    try {
-      return await sendViaResend(mail, resendKey);
-    } catch (err) {
-      console.error(`[mail] Resend send failed for ${mail.to}: ${String(err).slice(0, 250)}`);
-      return { delivered: false, via: "resend-failed" };
-    }
-  }
-
   console.warn(
-    `[mail] No RESEND_API_KEY or SMTP_URL set. Not sending. To: ${mail.to}\n` +
+    `[mail] No BREVO_API_KEY, RESEND_API_KEY or SMTP_URL set. Not sending. ` +
+      `To: ${mail.to}\n` +
       `[mail] ${mail.subject}\n${mail.text}`
   );
   return { delivered: false, via: "console" };
