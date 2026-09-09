@@ -37,12 +37,29 @@ export const linkOnlyProvider: PriceProvider = {
   },
 };
 
+/** Google Shopping hands back raw spaces in URLs; URL normalises them. */
+function safeUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Drop-in upgrade when you want real numbers. Set SERPAPI_KEY and this takes
- * over automatically — no other file changes.
+ * Real numbers, via SerpAPI's Google Shopping endpoint. Set SERPAPI_KEY and
+ * this takes over from the link-only provider automatically.
  *
- * SerpAPI's Google Shopping endpoint returns `shopping_results[]` with
- * `source`, `link` and `extracted_price`.
+ * The destination field is `product_link`, not `link` — SerpAPI changed the
+ * shape of `shopping_results[]` and this code originally filtered on `link`,
+ * which silently discarded every result and produced no prices at all. `link`
+ * is still accepted as a fallback in case a result carries one.
+ *
+ * `product_link` points at the Google Shopping listing rather than straight at
+ * a retailer's basket, because a single listing usually aggregates several
+ * sellers (`multiple_sources: true`) and there is no one true checkout URL.
  */
 export const serpApiProvider: PriceProvider = {
   name: "serpapi-google-shopping",
@@ -57,26 +74,52 @@ export const serpApiProvider: PriceProvider = {
     url.searchParams.set("hl", "en");
     url.searchParams.set("api_key", key);
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+    });
     if (!res.ok) throw new Error(`SerpAPI responded ${res.status}`);
 
     const data = (await res.json()) as {
+      error?: string;
       shopping_results?: Array<{
         source?: string;
+        product_link?: string;
         link?: string;
         extracted_price?: number;
       }>;
     };
 
-    return (data.shopping_results ?? [])
-      .filter((r) => r.link && typeof r.extracted_price === "number")
-      .slice(0, 8)
-      .map((r) => ({
-        retailer: r.source ?? "unknown",
-        url: r.link!,
-        priceCents: Math.round(r.extracted_price! * 100),
+    // A blown quota answers 200 with an `error` string rather than a status.
+    if (data.error) throw new Error(`SerpAPI: ${data.error}`);
+
+    const quotes: PriceQuote[] = [];
+    const seen = new Set<string>();
+
+    for (const r of data.shopping_results ?? []) {
+      const link = safeUrl(r.product_link ?? r.link);
+      if (!link || typeof r.extracted_price !== "number") continue;
+
+      // One row per seller. Google lists the same shoe from a merchant several
+      // times across sizes and colours, and three identical prices from the
+      // same shop is not a comparison.
+      const retailer = r.source?.trim() || "unknown";
+      const dedupeKey = retailer.toLowerCase();
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      quotes.push({
+        retailer,
+        url: link,
+        priceCents: Math.round(r.extracted_price * 100),
         currency: "USD",
-      }));
+      });
+    }
+
+    // Cheapest first, so the daily job stores the best of the batch even if the
+    // page only ever reads the top few.
+    quotes.sort((a, b) => (a.priceCents ?? 0) - (b.priceCents ?? 0));
+    return quotes.slice(0, 8);
   },
 };
 
