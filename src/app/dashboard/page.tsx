@@ -58,7 +58,9 @@ export default async function Dashboard() {
         </Link>
         <div className="masthead-side">
           <UnitPicker unit={unit} />
-          <span>{session.user.name ?? session.user.email}</span>
+          <span className="masthead-who">
+            {session.user.name ?? session.user.email}
+          </span>
           <form
             action={async () => {
               "use server";

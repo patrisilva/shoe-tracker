@@ -102,17 +102,65 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1rem 1.5rem;
   flex-wrap: wrap;
-  padding: 1.5rem 0;
+  padding: 1.25rem 0 1rem;
+  /* A road marking rather than a hairline: the dashes are the centre line of
+     a road, which is the surface this whole app is about. It is doing the job
+     a divider does anyway, so the motif costs nothing. */
+  border-bottom: 2px solid transparent;
+  border-image: repeating-linear-gradient(
+      90deg,
+      var(--rule) 0 22px,
+      transparent 22px 34px
+    )
+    1;
 }
 
+/* Right-hand group. The account is the quietest thing here; the unit switch
+   is the only control, so it gets the visible affordance. */
 .masthead-side {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  font-size: 0.9rem;
+  gap: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--ink-faint);
+}
+.masthead-who {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Unit switch ---------- */
+
+.unit-switch {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: #e9edf2;
+}
+.unit-seg {
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.35rem 0.7rem;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
   color: var(--ink-soft);
+  cursor: pointer;
+}
+.unit-seg:hover:not(.is-current) {
+  color: var(--ink);
+}
+.unit-seg.is-current {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(19, 26, 43, 0.12);
+  cursor: default;
 }
 
 .wordmark {
@@ -841,7 +889,27 @@ a:hover {
   background: rgba(19, 26, 43, 0.12);
 }
 
-/* Sits at the fill edge so the number and the wear are one object. */
+/* The finish flag in the scale row. Two rows of chequers at 4px read as a
+   flag at this size; the 5px pattern tried inside the band did not. */
+.gauge-finish {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.gauge-flag {
+  width: 12px;
+  height: 8px;
+  border-radius: 1px;
+  background-image:
+    linear-gradient(45deg, var(--ink-faint) 25%, transparent 25% 75%, var(--ink-faint) 75%),
+    linear-gradient(45deg, var(--ink-faint) 25%, transparent 25% 75%, var(--ink-faint) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+  background-color: #dfe4ea;
+}
+
 .gauge-reading {
   position: absolute;
   display: inline-flex;
@@ -886,10 +954,13 @@ a:hover {
   font-weight: 600;
   white-space: nowrap;
 }
-/* Once the fill reaches this label, state colour on state colour is
-   unreadable — "start shopping" in dark red on the red band. */
-.gauge-remaining.is-on-fill {
-  color: #fff;
+/* Travelling with the figure on a long fill: same colour, normal weight, and
+   set inside the fill so it never crosses onto the grey track. */
+.gauge-remaining.is-inline {
+  position: static;
+  margin-left: 0.6rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .gauge-scale {

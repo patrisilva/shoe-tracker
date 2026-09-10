@@ -40,14 +40,16 @@ export function WearGauge({
   //  - over 62%:  edge-riding would run into the remaining label at the right
   //               end, so it anchors to the left of the band instead
   const place = pct < 22 ? "outside" : pct > 62 ? "left" : "edge";
-  // Past this the fill has reached the right-hand label, so it needs to be
-  // set on the fill colour rather than on the grey track.
-  const remainingOnFill = pct > 78;
+  // When the figure is anchored left the fill is long, and a right-anchored
+  // remaining label straddles the fill edge — half on colour, half on the
+  // grey track, unreadable in either ink. So the two travel together and both
+  // sit on the fill.
+  const together = place === "left";
 
   return (
     <div className={`gauge gauge-${size}`}>
       <div
-        className="gauge-track"
+        className={`gauge-track${distance.state === "over" ? " is-over" : ""}`}
         role="img"
         aria-label={`${distance.distance} of ${distance.lifespan} ${u} used`}
       >
@@ -69,18 +71,21 @@ export function WearGauge({
         >
           <span className="num">{formatDistance(distance.distance)}</span>
           <small>{u}</small>
+          {/* wearMessage rather than a local string: it already handles the
+              over-the-line case and adds the "start shopping" nudge exactly
+              when that is the useful thing to say. */}
+          {together && (
+            <span className="gauge-remaining is-inline">
+              {wearMessage(distance, unit)}
+            </span>
+          )}
         </span>
 
-        {/* wearMessage rather than a local string: it already handles the
-            over-the-line case and adds the "start shopping" nudge exactly when
-            that is the useful thing to say. */}
-        <span
-          className={`gauge-remaining${
-            remainingOnFill ? " is-on-fill" : ` state-${distance.state}`
-          }`}
-        >
-          {wearMessage(distance, unit)}
-        </span>
+        {!together && (
+          <span className={`gauge-remaining state-${distance.state}`}>
+            {wearMessage(distance, unit)}
+          </span>
+        )}
       </div>
 
       <div className="gauge-scale" aria-hidden="true">
@@ -88,7 +93,14 @@ export function WearGauge({
         {ticks.map((d) => (
           <span key={d}>{d}</span>
         ))}
-        <span>{distance.lifespan}</span>
+        {/* The threshold is the finish line, so it is flagged as one. It sits
+            in the scale rather than inside the band: the right end of the band
+            already holds the remaining figure, and chequers behind text read
+            as a rendering fault rather than as a marker. */}
+        <span className="gauge-finish">
+          <span className="gauge-flag" />
+          {distance.lifespan}
+        </span>
       </div>
     </div>
   );
