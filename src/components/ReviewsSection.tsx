@@ -35,6 +35,10 @@ export function ReviewsSection({
 
     findReviewsNow(shoeId)
       .then(() => router.refresh())
+      // Belt and braces alongside the action returning quietly: an effect
+      // that leaves a rejected promise unhandled takes the whole page down
+      // with a client-side exception, and a review lookup is not worth that.
+      .catch(() => undefined)
       .finally(() => setLooking(false));
   }, [needsLookup, shoeId, router]);
 

@@ -282,8 +282,21 @@ export async function removeShoePhoto(formData: FormData): Promise<void> {
  * never delay the page.
  */
 export async function findReviewsNow(shoeId: string): Promise<void> {
-  const userId = await requireUserId();
-  await ownedShoe(shoeId, userId);
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  // Returns quietly rather than throwing when the caller has no business
+  // here. This runs from an effect after paint, so by the time it lands the
+  // shoe may have been deleted or the session may have gone — neither is
+  // worth turning into an error, and `requireUserId` would redirect while
+  // `ownedShoe` would throw, both of which reach the browser as an uncaught
+  // rejection and surface as "a client-side exception".
+  if (!userId) return;
+  const owned = await prisma.shoe.findFirst({
+    where: { id: shoeId, userId },
+    select: { id: true },
+  });
+  if (!owned) return;
 
   try {
     await refreshShoeReviews(shoeId);
