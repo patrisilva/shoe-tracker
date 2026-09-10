@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { DistanceRail } from "@/components/DistanceRail";
+import { WearGauge } from "@/components/WearGauge";
 import { LogRunForm } from "@/components/LogRunForm";
 import { ReviewsSection } from "@/components/ReviewsSection";
 import { RunRow } from "@/components/RunRow";
@@ -12,12 +12,7 @@ import { toggleRetired } from "@/app/actions";
 import { MAX_REVIEW_LINKS, sourceName } from "@/lib/links";
 import { formatPrice } from "@/lib/price-provider";
 import { cheapest } from "@/lib/refresh";
-import {
-  computeDistance,
-  formatDate,
-  formatDistance,
-  wearMessage,
-} from "@/lib/shoe";
+import { computeDistance, formatDate, formatDistance } from "@/lib/shoe";
 import { unitLabel } from "@/lib/units";
 
 export const dynamic = "force-dynamic";
@@ -126,40 +121,22 @@ export default async function ShoePage({
           </div>
         </div>
 
-        <div className="rack-head" style={{ marginTop: "1.25rem" }}>
-          <span className="meta">
+        <div style={{ marginTop: "1.5rem" }}>
+          <WearGauge distance={m} unit={unit} size="hero" />
+        </div>
+
+        <div className="shoe-facts">
+          <span>
             {shoe._count.runs} {shoe._count.runs === 1 ? "run" : "runs"} logged
           </span>
-          <span className={`odometer state-${m.state}`}>
-            <span className="num">{formatDistance(m.distance)}</span>
-            <small>
-              of {m.lifespan} {u}
-            </small>
-          </span>
-        </div>
-
-        <DistanceRail distance={m} unit={unit} />
-
-        <div className="rack-foot">
-          <span className={`chip state-${m.state}`}>
-            {wearMessage(m, unit)}
-          </span>
           <span>
-            {shoe.startingDistance > 0 && (
-              <span>
-                Started at {formatDistance(shoe.startingDistance)} {u}
-              </span>
-            )}
-            {shoe.purchasedOn && <span>Bought {formatDate(shoe.purchasedOn)}</span>}
-            {shoe.retiredAt && <span>Retired {formatDate(shoe.retiredAt)}</span>}
+            of {m.lifespan} {u}
           </span>
-        </div>
-      </section>
-
-      <section className="section">
-        <h2>Log a run</h2>
-        <div style={{ marginTop: "1.5rem" }}>
-          <LogRunForm shoeId={shoe.id} unit={unit} />
+          {shoe.startingDistance > 0 && (
+            <span>Started at {formatDistance(shoe.startingDistance)} {u}</span>
+          )}
+          {shoe.purchasedOn && <span>Bought {formatDate(shoe.purchasedOn)}</span>}
+          {shoe.retiredAt && <span>Retired {formatDate(shoe.retiredAt)}</span>}
         </div>
       </section>
 
@@ -168,6 +145,7 @@ export default async function ShoePage({
       <div className="shoe-columns">
         <section className="section">
           <h2>Run log</h2>
+          <LogRunForm shoeId={shoe.id} unit={unit} />
           {shoe.runs.length === 0 ? (
             <p className="empty">
               Nothing logged yet. Your first run shows up here.

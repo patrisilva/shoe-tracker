@@ -1,3 +1,5 @@
+import { ShoePhotoImg } from "@/components/ShoePhotoImg";
+
 /**
  * A shoe's photo, or a drawing when there isn't one.
  *
@@ -66,10 +68,7 @@ export function ShoePhoto({
   }
   return (
     <span className={`shoe-photo ${className ?? ""}`}>
-      {/* Served from our own route with an ownership check, so next/image's
-          remote loader config would add nothing here. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/api/shoes/${shoeId}/image`} alt="" loading="lazy" />
+      <ShoePhotoImg shoeId={shoeId} />
     </span>
   );
 }

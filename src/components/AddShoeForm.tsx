@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { addShoe, type ActionResult } from "@/app/actions";
 import { PhotoField } from "@/components/PhotoField";
@@ -16,7 +16,18 @@ function Submit({ label }: { label: string }) {
 }
 
 export function AddShoeForm({ unit }: { unit: Unit }) {
+  // Same reasoning as the run form: adding a pair is occasional, so it should
+  // not occupy as much of the page as the rack itself.
+  const [open, setOpen] = useState(false);
   const [state, action] = useActionState<ActionResult, FormData>(addShoe, {});
+
+  if (!open) {
+    return (
+      <button className="btn btn-solid" type="button" onClick={() => setOpen(true)}>
+        Add a pair
+      </button>
+    );
+  }
 
   return (
     <form action={action} className="form-panel">
@@ -69,7 +80,12 @@ export function AddShoeForm({ unit }: { unit: Unit }) {
       </div>
 
       {state.error && <p className="error">{state.error}</p>}
-      <Submit label="Add to rack" />
+      <div className="run-edit-actions">
+        <Submit label="Add to rack" />
+        <button className="btn" type="button" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

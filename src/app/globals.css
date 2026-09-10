@@ -510,14 +510,18 @@ a:hover {
   display: block;
 }
 /* The drawing is a flat mark, so it sits on a tint rather than filling the
-   frame edge to edge like a photograph would. */
-.shoe-photo.is-drawing {
+   frame edge to edge like a photograph would. `:has` covers the case where a
+   photo failed to decode and the child swapped itself for the drawing — the
+   class lives on the parent, which the child cannot reach. */
+.shoe-photo.is-drawing,
+.shoe-photo:has(svg) {
   display: grid;
   place-items: center;
   background: var(--flame-wash);
   color: var(--flame-deep);
 }
-.shoe-photo.is-drawing svg {
+.shoe-photo.is-drawing svg,
+.shoe-photo:has(svg) svg {
   width: 76%;
   height: auto;
 }
@@ -577,6 +581,22 @@ a:hover {
 .shoe-hero-text {
   flex: 1;
   min-width: 14rem;
+}
+
+.shoe-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  margin-top: 0.9rem;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+
+.log-run-toggle {
+  margin-bottom: 1rem;
+}
+.log-run-panel {
+  margin-bottom: 1rem;
 }
 
 .rack-intro {
@@ -639,20 +659,24 @@ a:hover {
 
 /* ---------- The rack ---------- */
 
+/* One panel with divided rows, not a card per shoe. Nine identical floating
+   cards gave every element the same weight, so nothing had hierarchy. */
 .rack {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.rack-item {
   background: var(--card);
   border: 1px solid var(--rule);
   border-radius: var(--r-lg);
-  padding: 1.35rem 1.5rem;
   box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.rack-item {
+  padding: 1.25rem 1.5rem;
+}
+.rack-item + .rack-item {
+  border-top: 1px solid var(--rule);
 }
 .rack-item.has-photo {
   display: flex;
@@ -679,6 +703,12 @@ a:hover {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.rack-last {
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  white-space: nowrap;
 }
 
 .shoe-title {
@@ -771,30 +801,104 @@ a:hover {
 
 /* ---------- Wear gauge ---------- */
 
-.rail {
+/* The one loud element. Everything else on the page is deliberately quieter
+   so this can carry the weight, because "how worn is this pair" is the whole
+   question the product answers. */
+.gauge-track {
   position: relative;
-  height: 10px;
-  margin-top: 1rem;
-  border-radius: var(--r-pill);
-  background: #eaedf2;
+  display: flex;
+  align-items: center;
+  height: 2.75rem;
+  border-radius: var(--r-md);
+  background: #e9edf2;
   overflow: hidden;
 }
+.gauge-hero .gauge-track {
+  height: 3.5rem;
+}
 
-.rail-fill {
+.gauge-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  border-radius: var(--r-pill);
-  /* One orchestrated moment: the gauge fills from empty on load. The custom
-     property carries the target so the keyframe can end at the real value. */
-  animation: fill-rail 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  width: var(--pct);
+  /* One orchestrated moment: the band fills from empty on load. */
+  animation: fill-gauge 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-@keyframes fill-rail {
+@keyframes fill-gauge {
   from {
     width: 0;
   }
   to {
     width: var(--pct);
   }
+}
+
+.gauge-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(19, 26, 43, 0.12);
+}
+
+/* Sits at the fill edge so the number and the wear are one object. */
+.gauge-reading {
+  position: absolute;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-size: 1.35rem;
+  white-space: nowrap;
+}
+.gauge-hero .gauge-reading {
+  font-size: 1.9rem;
+}
+.gauge-reading small {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+/* Three placements, so the figure never lands on the remaining label. */
+.gauge-reading.is-outside {
+  left: calc(var(--pct) + 0.75rem);
+  color: var(--ink);
+}
+.gauge-reading.is-edge {
+  right: calc(100% - var(--pct) + 0.75rem);
+  color: #fff;
+}
+.gauge-reading.is-left {
+  left: 0.9rem;
+  color: #fff;
+}
+
+.gauge-remaining {
+  position: absolute;
+  right: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* Once the fill reaches this label, state colour on state colour is
+   unreadable — "start shopping" in dark red on the red band. */
+.gauge-remaining.is-on-fill {
+  color: #fff;
+}
+
+.gauge-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
 }
 
 .bg-fresh {
@@ -806,24 +910,6 @@ a:hover {
 .bg-worn,
 .bg-over {
   background: linear-gradient(90deg, #ef4444, var(--worn));
-}
-
-.rail-tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: rgba(255, 255, 255, 0.75);
-  transform: translateX(-1px);
-}
-
-.rail-scale {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.4rem;
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-faint);
 }
 
 /* ---------- Reviews ---------- */
@@ -1062,16 +1148,42 @@ a:hover {
   display: grid;
   gap: 0.5rem;
 }
-.stack > li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding: 0.8rem 1.1rem;
+.stack {
   background: var(--card);
   border: 1px solid var(--rule);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  gap: 0;
+}
+/* Rows, not cards. A run-log row was 63% empty space with its content pinned
+   to opposite edges; a grid keeps distance, notes and date in real columns.
+   min-content on the first column lets the figure size itself rather than
+   wrapping "6.2 mi" onto two lines inside a fixed width. */
+.stack > li {
+  display: grid;
+  grid-template-columns: min-content minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 1.1rem;
+}
+.stack > li > :first-child {
+  white-space: nowrap;
+}
+/* The retired list has two children, not three. */
+.stack.is-pairs > li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+/* A long note shortens rather than pushing the row to three lines. */
+.stack > li .meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stack > li + li {
+  border-top: 1px solid var(--rule);
+}
+.stack > li:hover {
+  background: #fbfcfd;
 }
 
 /* ---------- Shoe page columns ---------- */
@@ -1101,8 +1213,12 @@ a:hover {
   flex-direction: row;
 }
 .review-grid.is-column .review-shot {
-  flex: 0 0 8rem;
-  aspect-ratio: 1 / 1;
+  flex: 0 0 7rem;
+  /* align-self stops the flex line stretching this and overriding the ratio,
+     which was giving the column ragged 154px and 173px thumbnails. */
+  align-self: stretch;
+  aspect-ratio: auto;
+  min-height: 100%;
   border-bottom: 0;
   border-right: 1px solid var(--rule);
 }

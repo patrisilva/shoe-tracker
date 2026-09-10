@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { logRun, type ActionResult } from "@/app/actions";
 import { unitLabel, type Unit } from "@/lib/units";
@@ -15,6 +15,9 @@ function Submit() {
 }
 
 export function LogRunForm({ shoeId, unit }: { shoeId: string; unit: Unit }) {
+  // Collapsed by default: the log is what people come to read, and an always
+  // open form was the largest thing on the page above it.
+  const [open, setOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   // The runner's own calendar day. toISOString() would give the UTC day, which
   // is already tomorrow for an evening run on this side of the Atlantic.
@@ -29,8 +32,20 @@ export function LogRunForm({ shoeId, unit }: { shoeId: string; unit: Unit }) {
     {}
   );
 
+  if (!open) {
+    return (
+      <button
+        className="btn btn-solid log-run-toggle"
+        type="button"
+        onClick={() => setOpen(true)}
+      >
+        Log a run
+      </button>
+    );
+  }
+
   return (
-    <form ref={formRef} action={action} className="form-panel">
+    <form ref={formRef} action={action} className="form-panel log-run-panel">
       <input type="hidden" name="shoeId" value={shoeId} />
       <div className="field-row">
         <label className="field">
@@ -54,7 +69,12 @@ export function LogRunForm({ shoeId, unit }: { shoeId: string; unit: Unit }) {
         <input name="notes" placeholder="Easy loop, felt flat on the forefoot" />
       </label>
       {state.error && <p className="error">{state.error}</p>}
-      <Submit />
+      <div className="run-edit-actions">
+        <Submit />
+        <button className="btn" type="button" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
     </form>
   );
 }

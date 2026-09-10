@@ -2,16 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
-import { DistanceRail } from "@/components/DistanceRail";
+import { WearGauge } from "@/components/WearGauge";
 import { AddShoeForm } from "@/components/AddShoeForm";
 import { UnitPicker } from "@/components/UnitPicker";
 import { ShoePhoto } from "@/components/ShoePhoto";
-import {
-  computeDistance,
-  formatDate,
-  formatDistance,
-  wearMessage,
-} from "@/lib/shoe";
+import { computeDistance, formatDate, formatDistance } from "@/lib/shoe";
 import { unitLabel } from "@/lib/units";
 
 export const dynamic = "force-dynamic";
@@ -121,34 +116,14 @@ export default async function Dashboard() {
                         <span className="shoe-nickname"> {shoe.nickname}</span>
                       )}
                     </Link>
-                    <span className={`odometer state-${m.state}`}>
-                      <span className="num">{formatDistance(m.distance)}</span>
-                      <small>{u}</small>
+                    <span className="rack-last">
+                      {last
+                        ? `Last run ${formatDistance(last.distance)} ${u} on ${formatDate(last.ranOn)}`
+                        : "No runs logged"}
                     </span>
                   </div>
 
-                  <DistanceRail distance={m} unit={unit} />
-
-                <div className="rack-foot">
-                  <span className={`chip state-${m.state}`}>
-                    {wearMessage(m, unit)}
-                  </span>
-                  <span>
-                    <span>
-                      {last ? (
-                        <>
-                          Last run {formatDistance(last.distance)} {u} on{" "}
-                          {formatDate(last.ranOn)}
-                        </>
-                      ) : (
-                        "No runs logged"
-                      )}
-                    </span>
-                    <span>
-                      <Link href={`/shoes/${shoe.id}`}>Log a run</Link>
-                    </span>
-                  </span>
-                  </div>
+                  <WearGauge distance={m} unit={unit} />
                 </div>
               </li>
             );
@@ -167,7 +142,7 @@ export default async function Dashboard() {
       {retired.length > 0 && (
         <section className="section">
           <h2>Retired</h2>
-          <ul className="stack">
+          <ul className="stack is-pairs">
             {retired.map((shoe) => {
               const m = computeDistance(
                 shoe.startingDistance,

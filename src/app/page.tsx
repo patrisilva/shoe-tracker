@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth, enabledProviders } from "@/auth";
-import { DistanceRail } from "@/components/DistanceRail";
+import { WearGauge } from "@/components/WearGauge";
 import { SignInButton } from "@/components/SignInButton";
 import { EmailAuthForm } from "@/components/EmailAuthForm";
-import { computeDistance, formatDistance, wearMessage } from "@/lib/shoe";
+import { computeDistance } from "@/lib/shoe";
 import { verificationRequired } from "@/lib/verification";
 
 function BoltIcon() {
@@ -124,18 +124,9 @@ export default async function Home({
                 Brooks Ghost 16
                 <span className="shoe-nickname"> Daily blues</span>
               </span>
-              <span className={`odometer state-${sample.state}`}>
-                <span className="num">{formatDistance(sample.distance)}</span>
-                <small>mi</small>
-              </span>
+              <span className="rack-last">Last run 8.4 mi on Sep 6</span>
             </div>
-            <DistanceRail distance={sample} unit="MI" />
-            <div className="rack-foot">
-              <span className={`chip state-${sample.state}`}>
-                {wearMessage(sample, "MI")}
-              </span>
-              <span>Last run 8.4 mi on Sep 6</span>
-            </div>
+            <WearGauge distance={sample} unit="MI" />
           </div>
         </section>
 

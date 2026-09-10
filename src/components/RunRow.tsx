@@ -41,19 +41,17 @@ export function RunRow({ run, unit }: { run: RunRowData; unit: Unit }) {
     {}
   );
 
+  // Three children, one per grid column: the row's columns only line up if
+  // distance, note and actions are siblings. Nesting the note inside the
+  // distance put both in the min-content column and wrapped "6.2 mi" onto two
+  // lines.
   if (!editing) {
     return (
       <li>
-        <span>
-          <strong className="num">
-            {formatDistance(run.distance)} {unitLabel(unit)}
-          </strong>
-          {run.notes && (
-            <span className="meta" style={{ marginLeft: "1rem" }}>
-              {run.notes}
-            </span>
-          )}
-        </span>
+        <strong className="num">
+          {formatDistance(run.distance)} {unitLabel(unit)}
+        </strong>
+        <span className="meta">{run.notes ?? ""}</span>
         <span className="meta run-actions">
           {run.ranOnLabel}
           <button
