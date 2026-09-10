@@ -8,6 +8,7 @@ import { ReviewsSection } from "@/components/ReviewsSection";
 import { RunRow } from "@/components/RunRow";
 import { HeroPhoto } from "@/components/HeroPhoto";
 import { DeleteShoeButton } from "@/components/DeleteShoeButton";
+import { EditShoeForm } from "@/components/EditShoeForm";
 import { toggleRetired } from "@/app/actions";
 import { MAX_REVIEW_LINKS, sourceName } from "@/lib/links";
 import { formatPrice } from "@/lib/price-provider";
@@ -287,6 +288,20 @@ export default async function ShoePage({
       <section className="section">
         <h2>Manage</h2>
         <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem", flexWrap: "wrap" }}>
+          <EditShoeForm
+            unit={unit}
+            shoe={{
+              id: shoe.id,
+              brand: shoe.brand,
+              model: shoe.model,
+              nickname: shoe.nickname,
+              startingDistance: shoe.startingDistance,
+              lifespanDistance: shoe.lifespanDistance,
+              purchasedOn: shoe.purchasedOn
+                ? shoe.purchasedOn.toISOString().slice(0, 10)
+                : "",
+            }}
+          />
           <form action={toggleRetired}>
             <input type="hidden" name="shoeId" value={shoe.id} />
             <button className="btn" type="submit">

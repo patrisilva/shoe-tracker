@@ -436,6 +436,56 @@ export async function deleteRun(formData: FormData): Promise<void> {
   revalidatePath(`/shoes/${run.shoeId}`);
 }
 
+/**
+ * Corrects a pair's details after the fact.
+ *
+ * There was no way to do this: a pair could be added, retired or deleted, but
+ * never fixed. A typo in the model, or a replacement threshold entered as 401
+ * because the old form rejected 400, was permanent short of deleting the pair
+ * and losing every run with it.
+ *
+ * Distances are in the account's unit, same as everywhere else.
+ */
+export async function editShoe(
+  _prev: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const unit = await currentUnit(userId);
+  const shoeId = String(formData.get("shoeId") ?? "");
+  await ownedShoe(shoeId, userId);
+
+  const brand = String(formData.get("brand") ?? "").trim();
+  const model = String(formData.get("model") ?? "").trim();
+  const nickname = String(formData.get("nickname") ?? "").trim() || null;
+  const startingDistance = Number(formData.get("startingDistance") ?? 0);
+  const lifespanDistance = Number(formData.get("lifespanDistance") ?? 0);
+  const purchasedOnRaw = String(formData.get("purchasedOn") ?? "").trim();
+
+  if (!brand) return { error: "Add a brand, for example Brooks." };
+  if (!model) return { error: "Add a model, for example Ghost 16." };
+  if (!Number.isFinite(startingDistance) || startingDistance < 0)
+    return { error: `Starting ${unitName(unit)} must be zero or more.` };
+  if (!Number.isFinite(lifespanDistance) || lifespanDistance <= 0)
+    return { error: `Replace at must be more than zero ${unitName(unit)}.` };
+
+  await prisma.shoe.update({
+    where: { id: shoeId },
+    data: {
+      brand,
+      model,
+      nickname,
+      startingDistance,
+      lifespanDistance,
+      purchasedOn: purchasedOnRaw ? calendarDate(purchasedOnRaw) : null,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/shoes/${shoeId}`);
+  return {};
+}
+
 export async function toggleRetired(formData: FormData): Promise<void> {
   const userId = await requireUserId();
   const shoeId = String(formData.get("shoeId") ?? "");
