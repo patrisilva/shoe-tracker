@@ -13,6 +13,17 @@ export async function refreshShoePrices(shoeId: string): Promise<number> {
     brand: shoe.brand,
     model: shoe.model,
   });
+
+  // What each pair actually searched for and got back. A run that reports a
+  // total only cannot tell you that one pair found nothing while another
+  // found eight — and "nothing found" is indistinguishable on the page from
+  // "never looked", so it needs to be visible somewhere. The name is quoted
+  // because a stray space or a typo in it is the likeliest reason two pairs
+  // of the same model disagree.
+  console.log(
+    `Prices for "${shoe.brand} ${shoe.model}" (${shoeId}): ${quotes.length} quotes`
+  );
+
   if (quotes.length === 0) return 0;
 
   const startOfToday = new Date();
