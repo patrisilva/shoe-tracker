@@ -80,7 +80,13 @@ export async function refreshAllPrices(): Promise<{
     async function worker() {
       for (let id = queue.shift(); id; id = queue.shift()) {
         try {
-          quotes += await refreshShoePrices(id);
+          // Deliberately two statements. `quotes += await refresh(id)` reads
+          // quotes *before* suspending on the await, so two workers both read
+          // the same value and the second overwrites the first — two pairs
+          // finding eight quotes each reported eight in total. Keeping the
+          // read-modify-write synchronous is what makes it safe.
+          const found = await refreshShoePrices(id);
+          quotes += found;
         } catch (err) {
           failed.push(id);
           // The reason used to be swallowed here, which meant a run could fail
