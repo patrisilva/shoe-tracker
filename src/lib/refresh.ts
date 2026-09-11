@@ -59,30 +59,50 @@ export async function refreshAllPrices(): Promise<{
   });
 
   let quotes = 0;
-  const failed: string[] = [];
-  const queue = [...shoes];
 
-  // Workers share one queue, so a slow shoe does not hold up the others.
-  async function worker() {
-    for (let shoe = queue.shift(); shoe; shoe = queue.shift()) {
-      try {
-        quotes += await refreshShoePrices(shoe.id);
-      } catch (err) {
-        failed.push(shoe.id);
-        // The reason used to be swallowed here, which meant a run could fail
-        // for every shoe, every day, and say nothing beyond a count. Finding
-        // out why cost a probe against production; it should cost a log line.
-        console.warn(
-          `Prices failed for shoe ${shoe.id}:`,
-          err instanceof Error ? `${err.name}: ${err.message}` : err
-        );
+  /** Prices one batch of shoes, returning the ids that did not come good. */
+  async function pass(ids: string[], label: string): Promise<string[]> {
+    const queue = [...ids];
+    const failed: string[] = [];
+
+    // Workers share one queue, so a slow shoe does not hold up the others.
+    async function worker() {
+      for (let id = queue.shift(); id; id = queue.shift()) {
+        try {
+          quotes += await refreshShoePrices(id);
+        } catch (err) {
+          failed.push(id);
+          // The reason used to be swallowed here, which meant a run could fail
+          // for every shoe, every day, and say nothing beyond a count. Finding
+          // out why cost a probe against production; it should cost a log line.
+          console.warn(
+            `Prices failed for shoe ${id} (${label}):`,
+            err instanceof Error ? `${err.name}: ${err.message}` : err
+          );
+        }
       }
     }
+
+    await Promise.all(
+      Array.from({ length: Math.min(PRICE_CONCURRENCY, ids.length) }, worker)
+    );
+    return failed;
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(PRICE_CONCURRENCY, shoes.length) }, worker)
+  const stalled = await pass(
+    shoes.map((s) => s.id),
+    "first pass"
   );
+
+  // Running out of patience is not the same as failing. A search we abandoned
+  // is still running at SerpAPI's end and lands in their cache when it
+  // finishes, so asking again returns it more or less instantly — one model
+  // measured here went from an abandoned four-minute wait to 0.4s on the
+  // retry. Without this, a model slower than the budget would fail every night
+  // forever, because the cache expires long before the next run comes round.
+  // Cached answers cost no quota, and a genuinely broken search fails fast
+  // from its cached error, so the second pass is close to free either way.
+  const failed = stalled.length > 0 ? await pass(stalled, "retry") : [];
 
   return { shoes: shoes.length, quotes, failed };
 }

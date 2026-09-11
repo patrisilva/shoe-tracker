@@ -49,22 +49,60 @@ function safeUrl(raw: string | undefined): string | null {
 }
 
 /**
- * How long to wait on one Google Shopping search.
+ * Why this engine is driven asynchronously.
  *
- * This wants to be absurdly generous, and 20s — a normal figure for an HTTP
- * call — was the reason no prices ever appeared. SerpAPI computes this engine
- * on demand, and measured cold it takes 60s, 83s, 90s and 112s; only a repeat
- * of the same query inside SerpAPI's one-hour cache comes back quickly, in
- * about 0.1s. Daily runs are 24h apart, so the cache is always cold and every
- * search was being aborted before it could answer. A shoe only ever showed a
- * price if something else had happened to warm that exact query within the
- * hour, which is why two pairs of the same model could disagree.
+ * Google Shopping is computed on demand, and asking for it synchronously is
+ * both slow and unreliable: measured cold it took 60s, 83s, 90s and 112s, and
+ * roughly half of those answered 503 rather than results — SerpAPI appears to
+ * give a synchronous request about 90 seconds and then give up. Only a repeat
+ * of the exact same query inside their one-hour cache came back quickly. Daily
+ * runs are 24h apart, so the cache was always cold, every search failed, and a
+ * pair only ever showed a price when something had happened to warm its query
+ * within the hour. That is how two pairs of the same model came to disagree.
  *
- * If SerpAPI ever gets slower than this, move to their async mode (submit the
- * search, collect it from the archive later) rather than raising the number
- * again — waiting minutes on a synchronous call has a ceiling.
+ * Submitting with `async=true` and collecting the result from the archive
+ * removes the ceiling, and is markedly faster in practice — the same query
+ * that 503'd after 90s synchronously completed in 14s this way.
+ *
+ * `no_cache` is deliberately not set. At a daily cadence the one-hour cache
+ * can never span two runs, so it costs nothing, and within a single run two
+ * pairs of the same model get the second answer free.
  */
-const SERPAPI_TIMEOUT_MS = 150_000;
+const SERPAPI_REQUEST_TIMEOUT_MS = 30_000;
+const SERPAPI_POLL_INTERVAL_MS = 2_000;
+/**
+ * Total patience for one search, across however many polls that takes.
+ *
+ * Asynchronous searches have no ceiling of their own, so this is the only
+ * limit — which means it is a budget, not a failure threshold. Measured
+ * completions were spread across 14s, 48s, 64s and beyond 121s, so four
+ * minutes is chosen to cover the tail rather than to be tight. Collecting
+ * from the archive does not spend quota, so a long wait costs only time.
+ */
+const SERPAPI_POLL_BUDGET_MS = 240_000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** One SerpAPI search record: either still running, finished, or failed. */
+type SerpSearch = {
+  error?: string;
+  search_metadata?: { id?: string; status?: string };
+  shopping_results?: Array<{
+    source?: string;
+    product_link?: string;
+    link?: string;
+    extracted_price?: number;
+  }>;
+};
+
+async function getSerpJson(url: URL): Promise<SerpSearch> {
+  const res = await fetch(url, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(SERPAPI_REQUEST_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`SerpAPI responded ${res.status}`);
+  return (await res.json()) as SerpSearch;
+}
 
 /**
  * Real numbers, via SerpAPI's Google Shopping endpoint. Set SERPAPI_KEY and
@@ -90,26 +128,35 @@ export const serpApiProvider: PriceProvider = {
     url.searchParams.set("q", `${brand} ${model} running shoe`);
     url.searchParams.set("gl", "us");
     url.searchParams.set("hl", "en");
+    url.searchParams.set("async", "true");
     url.searchParams.set("api_key", key);
 
-    const res = await fetch(url, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(SERPAPI_TIMEOUT_MS),
-    });
-    if (!res.ok) throw new Error(`SerpAPI responded ${res.status}`);
+    let data = await getSerpJson(url);
 
-    const data = (await res.json()) as {
-      error?: string;
-      shopping_results?: Array<{
-        source?: string;
-        product_link?: string;
-        link?: string;
-        extracted_price?: number;
-      }>;
-    };
+    // A query SerpAPI already holds comes back complete on this first call, so
+    // the loop below is skipped entirely on a cache hit.
+    const id = data.search_metadata?.id;
+    const deadline = Date.now() + SERPAPI_POLL_BUDGET_MS;
 
-    // A blown quota answers 200 with an `error` string rather than a status.
-    if (data.error) throw new Error(`SerpAPI: ${data.error}`);
+    while (data.search_metadata?.status === "Processing") {
+      if (!id) throw new Error("SerpAPI accepted the search but returned no id");
+      if (Date.now() > deadline) {
+        throw new Error(
+          `SerpAPI still processing after ${SERPAPI_POLL_BUDGET_MS / 1000}s`
+        );
+      }
+      await sleep(SERPAPI_POLL_INTERVAL_MS);
+
+      const archive = new URL(`https://serpapi.com/searches/${id}.json`);
+      archive.searchParams.set("api_key", key);
+      data = await getSerpJson(archive);
+    }
+
+    // A failed search is recorded as one: status Error, usually with a reason.
+    // A blown quota answers 200 with a bare `error` string and no status.
+    if (data.search_metadata?.status === "Error" || data.error) {
+      throw new Error(`SerpAPI: ${data.error ?? "search failed"}`);
+    }
 
     const quotes: PriceQuote[] = [];
     const seen = new Set<string>();
