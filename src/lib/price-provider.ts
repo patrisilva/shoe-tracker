@@ -49,6 +49,24 @@ function safeUrl(raw: string | undefined): string | null {
 }
 
 /**
+ * How long to wait on one Google Shopping search.
+ *
+ * This wants to be absurdly generous, and 20s — a normal figure for an HTTP
+ * call — was the reason no prices ever appeared. SerpAPI computes this engine
+ * on demand, and measured cold it takes 60s, 83s, 90s and 112s; only a repeat
+ * of the same query inside SerpAPI's one-hour cache comes back quickly, in
+ * about 0.1s. Daily runs are 24h apart, so the cache is always cold and every
+ * search was being aborted before it could answer. A shoe only ever showed a
+ * price if something else had happened to warm that exact query within the
+ * hour, which is why two pairs of the same model could disagree.
+ *
+ * If SerpAPI ever gets slower than this, move to their async mode (submit the
+ * search, collect it from the archive later) rather than raising the number
+ * again — waiting minutes on a synchronous call has a ceiling.
+ */
+const SERPAPI_TIMEOUT_MS = 150_000;
+
+/**
  * Real numbers, via SerpAPI's Google Shopping endpoint. Set SERPAPI_KEY and
  * this takes over from the link-only provider automatically.
  *
@@ -76,7 +94,7 @@ export const serpApiProvider: PriceProvider = {
 
     const res = await fetch(url, {
       cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(SERPAPI_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`SerpAPI responded ${res.status}`);
 

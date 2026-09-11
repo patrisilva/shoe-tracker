@@ -36,6 +36,17 @@ export async function refreshShoePrices(shoeId: string): Promise<number> {
   return quotes.length;
 }
 
+/**
+ * How many shoes to price at once.
+ *
+ * One search can take two minutes (see SERPAPI_TIMEOUT_MS), so a sequential
+ * loop made the whole run scale with the size of the rack and would outlast
+ * the HTTP route's 300s budget at four pairs. Kept small deliberately: the
+ * point is to stop wall-clock growing linearly, not to hammer a provider
+ * that is already slow.
+ */
+const PRICE_CONCURRENCY = 4;
+
 /** Runs across every shoe still in service. Called once a day. */
 export async function refreshAllPrices(): Promise<{
   shoes: number;
@@ -49,14 +60,29 @@ export async function refreshAllPrices(): Promise<{
 
   let quotes = 0;
   const failed: string[] = [];
+  const queue = [...shoes];
 
-  for (const shoe of shoes) {
-    try {
-      quotes += await refreshShoePrices(shoe.id);
-    } catch {
-      failed.push(shoe.id);
+  // Workers share one queue, so a slow shoe does not hold up the others.
+  async function worker() {
+    for (let shoe = queue.shift(); shoe; shoe = queue.shift()) {
+      try {
+        quotes += await refreshShoePrices(shoe.id);
+      } catch (err) {
+        failed.push(shoe.id);
+        // The reason used to be swallowed here, which meant a run could fail
+        // for every shoe, every day, and say nothing beyond a count. Finding
+        // out why cost a probe against production; it should cost a log line.
+        console.warn(
+          `Prices failed for shoe ${shoe.id}:`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err
+        );
+      }
     }
   }
+
+  await Promise.all(
+    Array.from({ length: Math.min(PRICE_CONCURRENCY, shoes.length) }, worker)
+  );
 
   return { shoes: shoes.length, quotes, failed };
 }
