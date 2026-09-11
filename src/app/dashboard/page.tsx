@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
+import { Logo } from "@/components/Logo";
 import { WearGauge } from "@/components/WearGauge";
 import { AddShoeForm } from "@/components/AddShoeForm";
 import { UnitPicker } from "@/components/UnitPicker";
@@ -53,9 +54,7 @@ export default async function Dashboard() {
   return (
     <main className="shell">
       <header className="masthead">
-        <Link href="/dashboard" className="wordmark">
-          Shoe Rack
-        </Link>
+        <Logo href="/dashboard" />
         <div className="masthead-side">
           <UnitPicker unit={unit} />
           <span className="masthead-who">

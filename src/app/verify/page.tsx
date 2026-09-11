@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { consumeVerification } from "@/lib/verification";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +23,7 @@ export default async function VerifyPage({
     <>
       <div className="shell">
         <header className="masthead">
-          <Link href="/" className="wordmark">
-            Shoe Rack
-          </Link>
+          <Logo href="/" />
         </header>
 
         <section className="hero">

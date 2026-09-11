@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth, enabledProviders } from "@/auth";
 import { WearGauge } from "@/components/WearGauge";
+import { Logo } from "@/components/Logo";
 import { SignInButton } from "@/components/SignInButton";
 import { EmailAuthForm } from "@/components/EmailAuthForm";
 import { computeDistance } from "@/lib/shoe";
@@ -62,7 +63,7 @@ export default async function Home({
     <>
       <div className="shell">
         <header className="masthead">
-          <span className="wordmark">Shoe Rack</span>
+          <Logo />
         </header>
 
         <section className="hero">
@@ -112,7 +113,7 @@ export default async function Home({
             <p className="gate-note">
               {mustConfirm
                 ? "New email accounts confirm their address first. Google sign-in needs no confirmation — Google has already done it."
-                : "Signing in creates your rack on first use — there is no separate sign-up."}
+                : "Sign in to create your rack."}
             </p>
           </div>
         </section>

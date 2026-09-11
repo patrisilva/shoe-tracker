@@ -163,15 +163,39 @@ a:hover {
   cursor: default;
 }
 
-.wordmark {
-  font-family: var(--font-display), system-ui, sans-serif;
-  font-weight: 800;
+/* ---------- Logo ---------- */
+
+/* Mark plus name. Sized in em off the lockup so the two always scale
+   together — the mark is never left stranded next to the type. */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
   font-size: 1.3rem;
-  letter-spacing: -0.03em;
   color: var(--ink);
 }
-.wordmark:hover {
+.logo:hover {
   text-decoration: none;
+}
+
+.logo-mark {
+  height: 1.6em;
+  width: auto;
+  flex: none;
+  /* A sole is never square to the road. Enough lean to read as a stride,
+     not enough to look like a mistake. */
+  transform: rotate(-14deg);
+}
+
+.logo-type {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1em;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  /* The mark carries the colour; the name stays ink so the lockup has one
+     loud element, not two competing. */
+  color: var(--ink);
 }
 
 /* ---------- Buttons ---------- */
